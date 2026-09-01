@@ -12,8 +12,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "ekkasarn_ai"
-# Replace with the id printed by `wrangler d1 create ekkasarn_ai` — see README.
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "a66634a4-d619-46ad-9959-a3260cc33253"
 
 [vars]
 # Which LLM backs /api/draft and /api/chat: "anthropic" or "gemini".
