@@ -1,0 +1,28 @@
+name = "ekkasarn-ai"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Serves everything in ./public that isn't matched by an /api/* route in
+# src/index.ts (the frontend: index.html + the bundled docx generator).
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ekkasarn_ai"
+# Replace with the id printed by `wrangler d1 create ekkasarn_ai` — see README.
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[vars]
+# Which LLM backs /api/draft and /api/chat: "anthropic" or "gemini".
+# The corresponding *_API_KEY must be set as a secret (never put keys here —
+# this file is committed to the repo). See README "Setup" for exact commands.
+LLM_PROVIDER = "anthropic"
+ANTHROPIC_MODEL = "claude-opus-5"
+GEMINI_MODEL = "gemini-2.5-flash"
+# Basic per-IP abuse guard for the unauthenticated /api/* endpoints (this is
+# the "Prototype" stage — no login yet, see README's security note).
+RATE_LIMIT_MAX_REQUESTS = "20"
+RATE_LIMIT_WINDOW_SECONDS = "600"
