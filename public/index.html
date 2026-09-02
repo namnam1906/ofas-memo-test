@@ -2488,6 +2488,37 @@ window.ICONS = {
     });
   }
 
+  // ---------- full reset on sign-out ----------
+  // This is a single-page app — signing out doesn't reload the page, it
+  // just shows the login gate as an overlay on top of whatever was already
+  // loaded (see the auth module's onSignedOut()). Without this, the form,
+  // preview, and version history all stayed exactly as they were
+  // underneath the lock screen, so signing back in (even as a different
+  // person, on a shared computer) instantly showed the previous draft
+  // again — not because anything reloaded it, it just never went away.
+  function resetToBlankDraft(){
+    ['orgName','phone','fax','refNo','subject','addressee','signerName','signerPosition'].forEach(function(id){
+      el(id).value = '';
+    });
+    el('attachments').value = '';
+    syncAttachments();
+    state.logoDataUrl = DEFAULT_LOGO_DATA_URL;
+    el('docLogoImg').src = state.logoDataUrl;
+    el('logoPreview').innerHTML = '<img src="' + state.logoDataUrl + '" alt="ตราสัญลักษณ์">';
+    setBodyParagraphs([]);
+    docVersions = [];
+    currentVersionIndex = -1;
+    updateVersionControlUI();
+    state.currentDocId = null;
+    history.replaceState(null, '', location.pathname);
+    hideStatus('genStatus');
+    hideStatus('downloadStatus');
+    ['orgName','phone','fax','refNo','subject','addressee','signerName','signerPosition'].forEach(function(id){
+      el(id).dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+  document.addEventListener('memo:signedOut', resetToBlankDraft);
+
   // ---------- save draft to D1 (private to the signed-in user — see src/index.ts) ----------
   async function saveDraft(triggerBtnId, statusElId){
     statusElId = statusElId || 'downloadStatus';
@@ -3383,7 +3414,7 @@ window.ICONS = {
     left.addEventListener('click', function(){ pills.scrollBy({ left: -160, behavior: 'smooth' }); });
     right.addEventListener('click', function(){ pills.scrollBy({ left: 160, behavior: 'smooth' }); });
   })();
-  M.el('chatRestartBtn').addEventListener('click', function(){
+  function startNewChatSession(){
     // the outgoing session is already saved (every turn autosaves) — this
     // just starts a new one, it doesn't erase anything from history
     currentSessionId = 'cs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -3393,15 +3424,25 @@ window.ICONS = {
     M.hideStatus('chatStatus');
     // a new session drafts a new document — forget the previously-loaded
     // one so the next "บันทึกร่าง" creates a fresh record instead of
-    // silently overwriting it
+    // silently overwriting it (also reset by resetToBlankDraft() on
+    // sign-out — harmless to do again here)
     M.state.currentDocId = null;
     history.replaceState(null, '', location.pathname);
     syncChatDraftedState();
     updateChatHeroVisibility();
     renderChatSuggestions(); // the just-finished session may now outrank what was showing
-  });
+  }
+  M.el('chatRestartBtn').addEventListener('click', startNewChatSession);
   M.el('chatDownloadBtn').addEventListener('click', function(){ M.performDownload('chatDownloadBtn', 'chatStatus'); });
   M.el('chatSaveDraftBtn').addEventListener('click', function(){ M.saveDraft('chatSaveDraftBtn', 'chatStatus'); });
+  // Signing out doesn't reload the page (SPA), so the chat thread/history
+  // would otherwise still be sitting there, exactly like the form/preview
+  // (see resetToBlankDraft() in the main module) — reset the chat side and
+  // land back on the plain form so a fresh sign-in always starts clean.
+  document.addEventListener('memo:signedOut', function(){
+    startNewChatSession();
+    activateFormMode();
+  });
 
 })();
 </script>
@@ -3487,6 +3528,13 @@ window.ICONS = {
     el('myDraftsPanel').classList.add('hidden');
     el('sidebarRecentDrafts').classList.add('hidden');
     resetPasswordVisibility('authPassword', 'authPasswordToggleBtn');
+    // This is an SPA — signing out just shows the gate above, it doesn't
+    // reload the page — so without this, whatever draft was on screen
+    // stays sitting in the form/chat underneath and reappears the instant
+    // someone signs back in (even a different person, on a shared
+    // computer). Handled by the main/chat modules (separate script
+    // blocks), which is why this is an event rather than a direct call.
+    document.dispatchEvent(new CustomEvent('memo:signedOut'));
   }
   // Landing here from a password-reset email link: Supabase parses the
   // recovery token from the URL and fires this event with a (temporary)
