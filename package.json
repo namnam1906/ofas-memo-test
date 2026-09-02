@@ -1,5 +1,5 @@
 {
-  "name": "ekkasarn-ai",
+  "name": "ofas-memo",
   "version": "0.1.0",
   "private": true,
   "description": "ผู้ช่วยร่างเอกสารราชการ — Cloudflare Worker + D1 prototype backend",
