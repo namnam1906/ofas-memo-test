@@ -2514,8 +2514,14 @@ window.ICONS = {
         result.id = docId;
       }else{
         result = await apiFetchJson('/api/documents', { title: data.subject || null, data: data });
+        // Tracked in memory only (not written into the URL) — this is what
+        // makes the *next* save in this tab update the same row instead of
+        // creating a duplicate, without making a plain refresh / re-login /
+        // switching to chat mode silently resume this draft forever. The
+        // URL only ever gets a real ?doc= when a saved draft is opened on
+        // purpose (openDraft()/loadDraftFromQuery() below), which is meant
+        // to be a bookmarkable/shareable link.
         state.currentDocId = result.id;
-        history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(result.id));
       }
       var openUrl = location.origin + location.pathname + '?doc=' + encodeURIComponent(result.id);
       try{ await navigator.clipboard.writeText(openUrl); }catch(e){ /* clipboard may be unavailable — not critical, the draft is still saved */ }
