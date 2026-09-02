@@ -2,6 +2,13 @@ name = "ofas-memo"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
+# Without this, `wrangler deploy` (every push to main, via GitHub Actions)
+# wipes any variable added through the Cloudflare dashboard that isn't also
+# listed in this file's [vars] below — e.g. ANTHROPIC_API_KEY, set via the
+# dashboard rather than `wrangler secret put`. keep_vars=true stops that.
+# (Real secrets set via `wrangler secret put`/dashboard "Secret" type are
+# never touched by a deploy either way — this only matters for plain vars.)
+keep_vars = true
 
 # Serves everything in ./public that isn't matched by an /api/* route in
 # src/index.ts (the frontend: index.html + the bundled docx generator).
