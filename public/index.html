@@ -2011,15 +2011,13 @@ docx/dist/index.mjs:
 
   var state = {
     logoDataUrl: DEFAULT_LOGO_DATA_URL,
-    // The page is real A4 size in CSS mm at zoom 1 (matches the actual .docx
-    // exactly), but that's wider/taller than the preview column, so you only
-    // ever see a scrolled-in crop of it — which makes the (correctly-sized)
-    // text read as oversized. Starting a bit zoomed out shows the whole page
-    // at a glance, like a normal document preview — 0.9 rather than the old
-    // 0.75 so the text itself reads more comfortably by default (this only
-    // scales the preview's display, not the actual pt sizes used in the
-    // .docx, so it stays accurate to what Word shows).
-    zoom: 0.9,
+    // The page is real A4 size in CSS mm, so at zoom 1 it matches the
+    // actual .docx exactly — full-size, no scaling. It's wider/taller than
+    // the preview column so you only see a scrolled-in crop of it, but
+    // that's the tradeoff for the text reading at its true size (this is
+    // purely a display scale, not the actual pt sizes used in the .docx,
+    // so it stays accurate to what Word shows either way).
+    zoom: 1,
     // id of the D1 `documents` row currently loaded into the form, if any —
     // set after the first successful save (or when opening a saved draft),
     // so subsequent "บันทึกร่าง" clicks UPDATE that row (PUT) instead of
