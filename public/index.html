@@ -1348,8 +1348,8 @@
 
 <!-- ===================== AUTH GATE (shown until signed in) ===================== -->
 <div id="authGate">
-  <div class="auth-card">
-    <h1>เข้าสู่ระบบ</h1>
+  <div class="auth-card" id="authCardNormal">
+    <h1 id="authTitle">เข้าสู่ระบบ</h1>
     <p class="auth-sub" id="authSub">ต้องเข้าสู่ระบบก่อนใช้งานผู้ช่วยร่างเอกสาร (บันทึกร่างของคุณผูกกับบัญชีนี้เท่านั้น)</p>
 
     <button type="button" class="auth-google-btn" id="authGoogleBtn">
@@ -1357,14 +1357,14 @@
       เข้าสู่ระบบด้วย Google
     </button>
 
-    <div class="auth-divider">หรือ</div>
+    <div class="auth-divider" id="authDivider">หรือ</div>
 
     <form id="authForm">
       <div class="field">
         <label for="authEmail">อีเมล</label>
         <input type="email" id="authEmail" autocomplete="email" required>
       </div>
-      <div class="field">
+      <div class="field" id="authPasswordField">
         <label for="authPassword">รหัสผ่าน</label>
         <input type="password" id="authPassword" autocomplete="current-password" required>
         <div class="hint hidden" id="authPasswordHint">อย่างน้อย 8 อักขระ ต้องมีทั้งตัวอักษรและตัวเลข</div>
@@ -1372,7 +1372,26 @@
       <button type="submit" class="btn btn-primary" id="authSubmitBtn">เข้าสู่ระบบ</button>
       <div class="status" id="authStatus"></div>
     </form>
+    <button type="button" class="auth-toggle-mode" id="authForgotBtn">ลืมรหัสผ่าน?</button>
     <button type="button" class="auth-toggle-mode" id="authToggleModeBtn">ยังไม่มีบัญชี? สมัครสมาชิก</button>
+  </div>
+
+  <!-- Shown instead of the card above when the page loads from a password-reset
+       email link (Supabase fires a PASSWORD_RECOVERY auth event — see the auth
+       module below) — a separate card rather than a 4th mode of the form above,
+       since it's reached via an email link, not by anything the user clicks here. -->
+  <div class="auth-card hidden" id="authCardRecovery">
+    <h1>ตั้งรหัสผ่านใหม่</h1>
+    <p class="auth-sub">ตั้งรหัสผ่านใหม่สำหรับบัญชีนี้ แล้วจะเข้าสู่ระบบให้อัตโนมัติ</p>
+    <form id="authRecoveryForm">
+      <div class="field">
+        <label for="authNewPassword">รหัสผ่านใหม่</label>
+        <input type="password" id="authNewPassword" autocomplete="new-password" required>
+        <div class="hint">อย่างน้อย 8 อักขระ ต้องมีทั้งตัวอักษรและตัวเลข</div>
+      </div>
+      <button type="submit" class="btn btn-primary" id="authRecoverySubmitBtn">ตั้งรหัสผ่านใหม่</button>
+      <div class="status" id="authRecoveryStatus"></div>
+    </form>
   </div>
 </div>
 
@@ -3094,6 +3113,8 @@ docx/dist/index.mjs:
     window.__auth.session = session;
     document.body.classList.remove('auth-locked');
     el('authGate').classList.add('hidden');
+    el('authCardRecovery').classList.add('hidden');
+    el('authCardNormal').classList.remove('hidden');
     el('userBadge').textContent = (session.user && session.user.email) || '';
     // Only once per page load — onAuthStateChange also fires on token
     // refresh, which shouldn't re-trigger the ?doc= load.
@@ -3108,8 +3129,20 @@ docx/dist/index.mjs:
     el('authGate').classList.remove('hidden');
     el('myDraftsPanel').classList.add('hidden');
   }
+  // Landing here from a password-reset email link: Supabase parses the
+  // recovery token from the URL and fires this event with a (temporary)
+  // session already attached — don't treat that as a real sign-in (would
+  // silently drop the user into the app instead of letting them set a new
+  // password), show the "set new password" card instead.
+  function onPasswordRecovery(){
+    document.body.classList.add('auth-locked');
+    el('authGate').classList.remove('hidden');
+    el('authCardNormal').classList.add('hidden');
+    el('authCardRecovery').classList.remove('hidden');
+  }
 
-  sb.auth.onAuthStateChange(function(_event, session){
+  sb.auth.onAuthStateChange(function(event, session){
+    if(event === 'PASSWORD_RECOVERY'){ onPasswordRecovery(); return; }
     if(session) onSignedIn(session); else onSignedOut();
   });
   sb.auth.getSession().then(function(res){
@@ -3117,7 +3150,7 @@ docx/dist/index.mjs:
     if(session) onSignedIn(session); else onSignedOut();
   });
 
-  // ---------- login / signup form ----------
+  // ---------- login / signup / forgot-password form ----------
   // Mirrors the password rule set in the Supabase dashboard (Authentication
   // → Providers → Email → minimum length 8, "Letters and digits" required)
   // so a weak password gets caught client-side before the round trip —
@@ -3125,26 +3158,66 @@ docx/dist/index.mjs:
   var PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
   var PASSWORD_RULE_MESSAGE = 'รหัสผ่านต้องมีอย่างน้อย 8 อักขระ และมีทั้งตัวอักษรและตัวเลข';
 
-  var mode = 'signin';
+  var mode = 'signin'; // 'signin' | 'signup' | 'forgot'
   function setMode(m){
     mode = m;
-    el('authSubmitBtn').textContent = m === 'signup' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
-    el('authToggleModeBtn').textContent = m === 'signup' ? 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิก';
-    el('authPasswordHint').classList.toggle('hidden', m !== 'signup');
-    el('authPassword').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
+    var signup = m === 'signup', forgot = m === 'forgot';
+    el('authTitle').textContent = forgot ? 'ลืมรหัสผ่าน' : 'เข้าสู่ระบบ';
+    el('authSub').textContent = forgot
+      ? 'กรอกอีเมลที่ใช้สมัคร แล้วกดส่งลิงก์ตั้งรหัสผ่านใหม่'
+      : 'ต้องเข้าสู่ระบบก่อนใช้งานผู้ช่วยร่างเอกสาร (บันทึกร่างของคุณผูกกับบัญชีนี้เท่านั้น)';
+    el('authGoogleBtn').classList.toggle('hidden', forgot);
+    el('authDivider').classList.toggle('hidden', forgot);
+    el('authPasswordField').classList.toggle('hidden', forgot);
+    el('authPassword').required = !forgot;
+    el('authPasswordHint').classList.toggle('hidden', !signup);
+    el('authPassword').autocomplete = signup ? 'new-password' : 'current-password';
+    el('authSubmitBtn').textContent = forgot ? 'ส่งลิงก์ตั้งรหัสผ่านใหม่' : (signup ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ');
+    el('authForgotBtn').classList.toggle('hidden', forgot || signup);
+    el('authToggleModeBtn').textContent = forgot
+      ? '← กลับไปเข้าสู่ระบบ'
+      : (signup ? 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิก');
   }
   el('authToggleModeBtn').addEventListener('click', function(){
-    setMode(mode === 'signup' ? 'signin' : 'signup');
+    setMode(mode === 'forgot' ? 'signin' : (mode === 'signup' ? 'signin' : 'signup'));
   });
+  el('authForgotBtn').addEventListener('click', function(){ setMode('forgot'); });
 
   el('authForm').addEventListener('submit', async function(e){
     e.preventDefault();
     var email = el('authEmail').value.trim();
-    var password = el('authPassword').value;
     var statusEl = el('authStatus');
     statusEl.className = 'status';
     statusEl.textContent = '';
 
+    if(mode === 'forgot'){
+      if(!email){
+        statusEl.textContent = 'กรุณากรอกอีเมล';
+        statusEl.className = 'status show err';
+        return;
+      }
+      var forgotBtn = el('authSubmitBtn');
+      forgotBtn.disabled = true;
+      try{
+        var forgotResult = await sb.auth.resetPasswordForEmail(email, {
+          redirectTo: location.origin + location.pathname
+        });
+        if(forgotResult.error) throw forgotResult.error;
+        // Deliberately non-committal about whether the email has an account
+        // (same reasoning as Supabase's own signUp() behavior below) — this
+        // is the standard, non-enumerating phrasing for a reset request.
+        statusEl.textContent = 'ถ้าอีเมลนี้มีบัญชีอยู่ ระบบจะส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้ กรุณาตรวจสอบกล่องอีเมล (รวมถึงถังขยะ/สแปม)';
+        statusEl.className = 'status show ok';
+      }catch(err){
+        statusEl.textContent = (err && err.message) || 'ส่งลิงก์ไม่สำเร็จ กรุณาลองใหม่';
+        statusEl.className = 'status show err';
+      }finally{
+        forgotBtn.disabled = false;
+      }
+      return;
+    }
+
+    var password = el('authPassword').value;
     if(mode === 'signup' && !PASSWORD_PATTERN.test(password)){
       statusEl.textContent = PASSWORD_RULE_MESSAGE;
       statusEl.className = 'status show err';
@@ -3158,13 +3231,57 @@ docx/dist/index.mjs:
         ? await sb.auth.signUp({ email: email, password: password })
         : await sb.auth.signInWithPassword({ email: email, password: password });
       if(result.error) throw result.error;
-      if(mode === 'signup' && !(result.data && result.data.session)){
-        statusEl.textContent = 'สมัครสำเร็จ กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตนก่อนเข้าสู่ระบบ';
-        statusEl.className = 'status show ok';
+      if(mode === 'signup'){
+        // Supabase's documented (if slightly obscure) way to tell "brand new
+        // signup" from "this email already has a confirmed account" without
+        // an explicit error: signUp() still returns 200 for an existing
+        // email (so bots can't use the error to enumerate registered
+        // addresses), but data.user.identities comes back as an empty array
+        // instead of holding the new identity — and, matching that, no
+        // confirmation email actually goes out in this case.
+        var identities = result.data && result.data.user && result.data.user.identities;
+        if(identities && identities.length === 0){
+          statusEl.textContent = 'อีเมลนี้เคยสมัครไว้แล้ว กรุณาเข้าสู่ระบบแทน หรือกด "ลืมรหัสผ่าน?" ถ้าจำรหัสผ่านไม่ได้';
+          statusEl.className = 'status show err';
+        }else if(!(result.data && result.data.session)){
+          statusEl.textContent = 'สมัครสำเร็จ กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตนก่อนเข้าสู่ระบบ';
+          statusEl.className = 'status show ok';
+        }
       }
       // a successful sign-in fires onAuthStateChange above, which closes the gate
     }catch(err){
       statusEl.textContent = (err && err.message) || 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่';
+      statusEl.className = 'status show err';
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  el('authRecoveryForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var password = el('authNewPassword').value;
+    var statusEl = el('authRecoveryStatus');
+    statusEl.className = 'status';
+    statusEl.textContent = '';
+
+    if(!PASSWORD_PATTERN.test(password)){
+      statusEl.textContent = PASSWORD_RULE_MESSAGE;
+      statusEl.className = 'status show err';
+      return;
+    }
+
+    var btn = el('authRecoverySubmitBtn');
+    btn.disabled = true;
+    try{
+      var result = await sb.auth.updateUser({ password: password });
+      if(result.error) throw result.error;
+      // updateUser() success fires onAuthStateChange with the (now regular)
+      // session — the listener above picks it up and unlocks the app via
+      // onSignedIn(), same as any other sign-in. See Supabase's own
+      // resetPasswordForEmail() docs for this exact pattern.
+      history.replaceState(null, '', location.pathname); // drop the recovery token from the URL
+    }catch(err){
+      statusEl.textContent = (err && err.message) || 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ กรุณาลองใหม่';
       statusEl.className = 'status show err';
     }finally{
       btn.disabled = false;

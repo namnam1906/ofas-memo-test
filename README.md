@@ -20,7 +20,8 @@ Memo Assistant
   หน้า login) เดิมพอร์ตมาจาก Claude Artifact prototype ตัวก่อนหน้า ตอนนี้เรียก backend ของตัวเองแทน
   `claude.use('sample')` ส่วนการสร้างไฟล์ .docx ยังทำฝั่ง client ล้วนๆ เหมือนเดิม (ไม่ต้องพึ่ง backend)
   ระบบ login ใช้ [`@supabase/supabase-js`](https://supabase.com/docs/reference/javascript) โหลดผ่าน CDN
-  โดยตรง (ไฟล์นี้ไม่มี build step) — รองรับทั้งอีเมล/รหัสผ่านและ Google
+  โดยตรง (ไฟล์นี้ไม่มี build step) — รองรับทั้งอีเมล/รหัสผ่านและ Google รวมถึงลิงก์ "ลืมรหัสผ่าน?"
+  (`resetPasswordForEmail` → คลิกลิงก์ในอีเมล → หน้าตั้งรหัสผ่านใหม่)
 - **Backend** (`src/index.ts`, [Hono](https://hono.dev)) — Cloudflare Worker ตัวเดียว serve ทั้งไฟล์ static
   (ผ่าน [Workers Assets](https://developers.cloudflare.com/workers/static-assets/)) และ API:
   - `POST /api/draft` — ร่างเนื้อหาบันทึกข้อความจากฟอร์ม
