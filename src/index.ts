@@ -173,6 +173,32 @@ app.post("/api/documents", async (c) => {
   return c.json({ id, createdAt: now });
 });
 
+// Updates a document in place (same id) rather than creating a new row —
+// used once a draft has already been saved or opened once, so repeated
+// "บันทึกร่าง" clicks on the same session update one record instead of
+// piling up duplicates. Same owner-scoped 404 pattern as DELETE below.
+app.put("/api/documents/:id", async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body.data !== "object" || body.data === null) {
+    return c.json(errorBody("bad_request", "กรุณาระบุ data (สถานะเอกสาร)"), 400);
+  }
+  const now = new Date().toISOString();
+  const title = typeof body.title === "string" ? body.title : null;
+
+  const result = await c.env.DB.prepare(
+    "UPDATE documents SET updated_at = ?, title = ?, data = ? WHERE id = ? AND owner_id = ?",
+  )
+    .bind(now, title, JSON.stringify(body.data), id, user.id)
+    .run();
+
+  if (!result.meta.changes) {
+    return c.json(errorBody("not_found", "ไม่พบเอกสารนี้"), 404);
+  }
+  return c.json({ id, updatedAt: now });
+});
+
 app.get("/api/documents/:id", async (c) => {
   const user = c.get("user");
   const id = c.req.param("id");
