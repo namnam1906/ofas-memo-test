@@ -1793,10 +1793,10 @@
           <button type="button" class="doc-type-scroll-btn" id="docTypeScrollRight" aria-label="เลื่อนดูประเภทเอกสารถัดไป">›</button>
         </div>
 
-        <div class="chat-suggest" id="chatSuggest">
-          <button type="button" class="chip-btn" data-fill="ขอลาพักผ่อน 3 วัน ตั้งแต่ 15 มีนาคม เรียน ผอ.">ขอลาพักผ่อน 3 วัน ตั้งแต่ 15 มีนาคม เรียน ผอ.</button>
-          <button type="button" class="chip-btn" data-fill="ขออนุมัติจัดซื้อครุภัณฑ์คอมพิวเตอร์ 5 เครื่อง">ขออนุมัติจัดซื้อครุภัณฑ์คอมพิวเตอร์ 5 เครื่อง</button>
-        </div>
+        <!-- populated by renderChatSuggestions() below — personalized to
+             this browser's own frequent/recent chat requests when there's
+             history to draw from, generic examples otherwise -->
+        <div class="chat-suggest" id="chatSuggest"></div>
 
         <div class="status" id="chatStatus"></div>
         <div class="hint" style="margin-top:8px;">AI อาจผิดพลาดได้ ควรตรวจสอบก่อนนำไปใช้งานจริงเสมอ</div>
@@ -2648,6 +2648,60 @@ docx/dist/index.mjs:
     try{ localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(list)); }catch(e){ /* storage unavailable — history just won't persist */ }
   }
 
+  // ---------- suggestion chips (below the chat input, before the first
+  // message) — personalized to this browser's own chat history instead of
+  // two fixed examples: the same request retyped across sessions ranks by
+  // how often it repeats (case/whitespace-insensitive), ties broken by
+  // recency; brand new / all-unique history falls back to recency alone,
+  // which degrades gracefully to "just the most recent thing you asked" ----------
+  var DEFAULT_SUGGESTIONS = [
+    'ขอลาพักผ่อน 3 วัน ตั้งแต่ 15 มีนาคม เรียน ผอ.',
+    'ขออนุมัติจัดซื้อครุภัณฑ์คอมพิวเตอร์ 5 เครื่อง'
+  ];
+  var SUGGESTION_COUNT = 2;
+
+  function computeSuggestedChips(){
+    var byKey = {};
+    loadHistoryList().forEach(function(session){
+      var text = (session.title || '').trim();
+      if(!text || text === 'แชทใหม่') return;
+      var key = text.replace(/\s+/g, ' ');
+      var entry = byKey[key];
+      if(!entry){ entry = { count: 0, sample: text, latest: 0 }; byKey[key] = entry; }
+      entry.count++;
+      if((session.updatedAt || 0) > entry.latest) entry.latest = session.updatedAt || 0;
+    });
+    var entries = Object.keys(byKey).map(function(k){ return byKey[k]; });
+    entries.sort(function(a, b){
+      if(b.count !== a.count) return b.count - a.count;
+      return b.latest - a.latest;
+    });
+    return entries.slice(0, SUGGESTION_COUNT).map(function(e){ return e.sample; });
+  }
+
+  function fillChatInputWith(text){
+    M.el('chatInput').value = text;
+    M.el('chatInput').focus();
+  }
+
+  function renderChatSuggestions(){
+    var box = M.el('chatSuggest');
+    var suggestions = computeSuggestedChips();
+    // top up with the generic examples if there isn't enough real history yet
+    for(var i = 0; suggestions.length < SUGGESTION_COUNT && i < DEFAULT_SUGGESTIONS.length; i++){
+      if(suggestions.indexOf(DEFAULT_SUGGESTIONS[i]) === -1) suggestions.push(DEFAULT_SUGGESTIONS[i]);
+    }
+    box.innerHTML = '';
+    suggestions.forEach(function(text){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip-btn';
+      btn.textContent = text;
+      btn.addEventListener('click', function(){ fillChatInputWith(text); });
+      box.appendChild(btn);
+    });
+  }
+
   function deriveSessionTitle(){
     var firstUser = chatMessages.filter(function(m){ return m.role === 'user'; })[0];
     var raw = (firstUser && firstUser.content || '').trim();
@@ -2749,6 +2803,7 @@ docx/dist/index.mjs:
   function deleteSession(id){
     saveHistoryList(loadHistoryList().filter(function(s){ return s.id !== id; }));
     renderHistoryList();
+    renderChatSuggestions();
   }
 
   function openHistoryPanel(){
@@ -3173,12 +3228,7 @@ docx/dist/index.mjs:
   M.el('chatInput').addEventListener('keydown', function(e){
     if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
   });
-  Array.prototype.forEach.call(document.querySelectorAll('#chatSuggest .chip-btn'), function(btn){
-    btn.addEventListener('click', function(){
-      M.el('chatInput').value = btn.getAttribute('data-fill');
-      M.el('chatInput').focus();
-    });
-  });
+  renderChatSuggestions();
 
   // ---------- doc-type picker row: horizontal-scroll via the two arrow buttons
   // (only "บันทึกข้อความ" is actually enabled today — the rest just preview
@@ -3201,6 +3251,7 @@ docx/dist/index.mjs:
     M.hideStatus('chatStatus');
     syncChatDraftedState();
     updateChatHeroVisibility();
+    renderChatSuggestions(); // the just-finished session may now outrank what was showing
   });
   M.el('chatDownloadBtn').addEventListener('click', function(){ M.performDownload('chatDownloadBtn', 'chatStatus'); });
   M.el('chatSaveDraftBtn').addEventListener('click', function(){ M.saveDraft('chatSaveDraftBtn', 'chatStatus'); });
