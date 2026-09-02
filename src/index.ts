@@ -210,6 +210,38 @@ app.delete("/api/documents/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// ---------- profile / "memory" (D1) ----------
+// One JSON blob per user (org name, saved signers, address book) used to
+// pre-fill the form on a fresh draft — see public/index.html's memory
+// module. Distinct from `documents`: this is settings, not a saved draft.
+
+app.get("/api/profile", async (c) => {
+  const user = c.get("user");
+  const row = await c.env.DB.prepare("SELECT data FROM user_profiles WHERE user_id = ?")
+    .bind(user.id)
+    .first<{ data: string }>();
+
+  return c.json({ data: row ? JSON.parse(row.data) : {} });
+});
+
+app.put("/api/profile", async (c) => {
+  const user = c.get("user");
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body.data !== "object" || body.data === null) {
+    return c.json(errorBody("bad_request", "กรุณาระบุ data"), 400);
+  }
+  const now = new Date().toISOString();
+
+  await c.env.DB.prepare(
+    `INSERT INTO user_profiles (user_id, updated_at, data) VALUES (?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET updated_at = excluded.updated_at, data = excluded.data`,
+  )
+    .bind(user.id, now, JSON.stringify(body.data))
+    .run();
+
+  return c.json({ ok: true, updatedAt: now });
+});
+
 // Anything else (/, /index.html, and any other static asset) falls through
 // to the bundled frontend in ./public.
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));

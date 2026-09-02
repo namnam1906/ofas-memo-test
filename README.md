@@ -17,11 +17,13 @@ Memo Assistant
 ## สถาปัตยกรรม
 
 - **Frontend** (`public/index.html`) — หน้าเว็บเดียวจบ (form ร่างเอกสาร + โหมดแชท + preview + ดาวน์โหลด .docx +
-  หน้า login) เดิมพอร์ตมาจาก Claude Artifact prototype ตัวก่อนหน้า ตอนนี้เรียก backend ของตัวเองแทน
-  `claude.use('sample')` ส่วนการสร้างไฟล์ .docx ยังทำฝั่ง client ล้วนๆ เหมือนเดิม (ไม่ต้องพึ่ง backend)
+  หน้า login + เมนูบัญชีผู้ใช้) เดิมพอร์ตมาจาก Claude Artifact prototype ตัวก่อนหน้า ตอนนี้เรียก backend ของ
+  ตัวเองแทน `claude.use('sample')` ส่วนการสร้างไฟล์ .docx ยังทำฝั่ง client ล้วนๆ เหมือนเดิม (ไม่ต้องพึ่ง backend)
   ระบบ login ใช้ [`@supabase/supabase-js`](https://supabase.com/docs/reference/javascript) โหลดผ่าน CDN
   โดยตรง (ไฟล์นี้ไม่มี build step) — รองรับทั้งอีเมล/รหัสผ่านและ Google รวมถึงลิงก์ "ลืมรหัสผ่าน?"
-  (`resetPasswordForEmail` → คลิกลิงก์ในอีเมล → หน้าตั้งรหัสผ่านใหม่)
+  (`resetPasswordForEmail` → คลิกลิงก์ในอีเมล → หน้าตั้งรหัสผ่านใหม่) เมนู dropdown ที่มุมขวาบน (คลิกที่รูปโปรไฟล์)
+  มี "โปรไฟล์" (แก้ชื่อที่แสดง), "ข้อมูลส่วนตัว & Memory" (บันทึกชื่อหน่วยงาน/รายชื่อผู้ลงนาม/สมุดที่อยู่ ไว้
+  pre-fill ฟอร์มร่างใหม่อัตโนมัติ), "ร่างของฉัน", และ "ออกจากระบบ"
 - **Backend** (`src/index.ts`, [Hono](https://hono.dev)) — Cloudflare Worker ตัวเดียว serve ทั้งไฟล์ static
   (ผ่าน [Workers Assets](https://developers.cloudflare.com/workers/static-assets/)) และ API:
   - `POST /api/draft` — ร่างเนื้อหาบันทึกข้อความจากฟอร์ม
@@ -29,16 +31,18 @@ Memo Assistant
   - `GET /api/documents`, `POST /api/documents`, `GET /api/documents/:id`, `DELETE /api/documents/:id` —
     รายการ/เซฟ/โหลด/ลบร่างเอกสารของผู้ใช้ที่ login อยู่ ผูกกับปุ่ม "💾 บันทึกร่าง" และเมนู "📂 ร่างของฉัน"
     ในหน้าเว็บแล้ว (ทั้งโหมดฟอร์มและโหมดแชท)
+  - `GET /api/profile`, `PUT /api/profile` — ข้อมูล "ข้อมูลส่วนตัว & Memory" ของผู้ใช้ที่ login อยู่ (ชื่อ
+    หน่วยงาน/รายชื่อผู้ลงนาม/สมุดที่อยู่ — JSON blob เดียว) ผูกกับเมนู "ข้อมูลส่วนตัว & Memory" แล้ว
   - `GET /api/health` — จุดเดียวที่ไม่ต้อง login
   - ทุก route อื่นผ่าน middleware ตรวจ JWT จาก Supabase (`src/auth.ts`) ก่อนเสมอ — ไม่ login ได้ `401
     unauthorized`
 - **LLM** (`src/llm/*`) — สลับได้ระหว่าง Anthropic (Claude) กับ Google Gemini ผ่าน env var `LLM_PROVIDER`
   โดยไม่ต้องแก้โค้ด ทั้งสอง provider ใช้ contract เดียวกัน (`LLMProvider.callJSON`)
-- **D1** — ใช้ 2 อย่าง: (1) rate-limit counter กัน endpoint AI ถูกยิงรัว (2) ตาราง `documents` (มี `owner_id`
-  ผูกกับ Supabase user id)
+- **D1** — ใช้ 3 อย่าง: (1) rate-limit counter กัน endpoint AI ถูกยิงรัว (2) ตาราง `documents` (มี `owner_id`
+  ผูกกับ Supabase user id) (3) ตาราง `user_profiles` — "ข้อมูลส่วนตัว & Memory" ของแต่ละบัญชี
 - **Supabase** — ใช้เฉพาะส่วน **Auth** (อีเมล/รหัสผ่าน + Google OAuth) ไม่ได้ใช้ Postgres/ฐานข้อมูลฝั่ง Supabase
-  เลย — เอกสารยังอยู่ใน D1 ทั้งหมด การตรวจ JWT ฝั่ง Worker ใช้ Supabase JWKS (public key) ไม่ต้องมี secret ใดๆ
-  เพิ่มบน Worker
+  เลย — เอกสารและข้อมูลผู้ใช้ยังอยู่ใน D1 ทั้งหมด การตรวจ JWT ฝั่ง Worker ใช้ Supabase JWKS (public key) ไม่ต้อง
+  มี secret ใดๆ เพิ่มบน Worker
 
 **Prompt อยู่ฝั่งเซิร์ฟเวอร์ทั้งหมด** (`src/prompts.ts`) — client ส่งแค่ field ที่กรอกจริง (เช่น `orgName`,
 `notes`, `turns`) ไม่ส่ง prompt ดิบ ป้องกันไม่ให้ endpoint ถูกใช้เป็น proxy เรียก LLM ตามใจชอบ
@@ -186,5 +190,7 @@ Workflow นี้ deploy โค้ด + apply migration เท่านั้�
 | POST | `/api/documents` | `{title?, data}` | บันทึกเอกสารใหม่ คืน `{id, createdAt}` — `owner_id` ตั้งจาก JWT อัตโนมัติ |
 | GET | `/api/documents/:id` | — | คืนเอกสาร ถ้าเป็นของผู้ใช้ที่ login อยู่ ไม่งั้น 404 (ไม่บอกว่ามีอยู่จริงแต่เป็นของคนอื่น) |
 | DELETE | `/api/documents/:id` | — | ลบเอกสาร (เฉพาะของตัวเอง) คืน `{ok: true}` หรือ 404 |
+| GET | `/api/profile` | — | คืน `{data}` — "ข้อมูลส่วนตัว & Memory" ของผู้ใช้ที่ login อยู่ (`{}` ถ้ายังไม่เคยบันทึก) |
+| PUT | `/api/profile` | `{data}` | บันทึก/อัปเดตทั้งก้อน (upsert) คืน `{ok: true, updatedAt}` |
 
 ทุก endpoint ที่ error ตอบกลับรูปแบบเดียวกัน: `{"error": {"code": "...", "message": "..."}}`

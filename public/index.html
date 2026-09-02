@@ -353,7 +353,6 @@
   }
 
   .app-head-actions{ margin-left:auto; display:flex; align-items:center; gap:10px; flex:0 0 auto; }
-  .user-badge{ font-size:12px; color:var(--ink-500); white-space:nowrap; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
   .header-icon-btn{
     display:flex; align-items:center; gap:6px;
     font-family:inherit; font-size:12.5px; font-weight:600;
@@ -362,18 +361,20 @@
   }
   .header-icon-btn:hover{ background:var(--pink-50); border-color:var(--pink-400); }
 
-  #myDraftsPanel{
+  #myDraftsPanel, #profilePanel, #memoryPanel{
     position:fixed; inset:0; background:rgba(46,39,51,.35);
     display:flex; align-items:flex-start; justify-content:center;
     padding:60px 20px; z-index:900;
+    overflow-y:auto;
   }
-  #myDraftsPanel.hidden{ display:none; }
+  #myDraftsPanel.hidden, #profilePanel.hidden, #memoryPanel.hidden{ display:none; }
   .my-drafts-card{
     width:100%; max-width:480px; max-height:70vh; overflow-y:auto;
     background:var(--bg-card); border:1px solid var(--border-soft);
     border-radius:var(--radius); padding:20px;
     box-shadow:0 20px 50px -20px rgba(46,39,51,.4);
   }
+  .my-drafts-card.memory-card{ max-width:560px; max-height:none; }
   .my-drafts-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
   .my-drafts-card-head h2{ margin:0; font-size:15px; color:var(--ink-900); }
   .my-drafts-close{ background:none; border:none; font-size:18px; line-height:1; color:var(--ink-500); cursor:pointer; padding:4px; }
@@ -388,6 +389,60 @@
   .draft-item-del{ background:none; border:none; color:var(--ink-muted); cursor:pointer; font-size:13px; flex:0 0 auto; padding:4px; }
   .draft-item-del:hover{ color:var(--danger-text); }
   .draft-empty{ font-size:12.5px; color:var(--ink-muted); padding:20px 4px; text-align:center; }
+
+  /* ---------- user menu (header dropdown) ---------- */
+  .user-menu{ position:relative; }
+  .user-menu-trigger{
+    display:flex; align-items:center; gap:8px;
+    background:#fff; border:1.5px solid var(--pink-200); border-radius:999px;
+    padding:5px 12px 5px 5px; cursor:pointer; font-family:inherit;
+  }
+  .user-menu-trigger:hover{ background:var(--pink-50); border-color:var(--pink-400); }
+  .user-avatar{
+    width:26px; height:26px; border-radius:50%; flex:0 0 auto;
+    background:linear-gradient(135deg, var(--pink-400), var(--pink-600));
+    color:#fff; font-size:11.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    background-size:cover; background-position:center;
+    text-transform:uppercase;
+  }
+  .user-menu-name{ font-size:12.5px; font-weight:600; color:var(--ink-900); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-menu-chevron{ font-size:10px; color:var(--ink-muted); }
+  .user-menu-dropdown{
+    position:absolute; top:calc(100% + 8px); right:0; z-index:950;
+    width:230px; background:var(--bg-card); border:1px solid var(--border-soft);
+    border-radius:14px; padding:8px; box-shadow:0 16px 40px -16px rgba(46,39,51,.35);
+  }
+  .user-menu-dropdown.hidden{ display:none; }
+  .user-menu-head{ padding:8px 10px 10px; border-bottom:1px solid var(--border-soft); margin-bottom:6px; }
+  .user-menu-head-name{ font-size:13px; font-weight:700; color:var(--ink-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-menu-head-email{ font-size:11.5px; color:var(--ink-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-menu-item{
+    display:block; width:100%; text-align:left; background:none; border:none;
+    font-family:inherit; font-size:13px; color:var(--ink-900); font-weight:500;
+    padding:9px 10px; border-radius:8px; cursor:pointer;
+  }
+  .user-menu-item:hover{ background:var(--pink-50); }
+  .user-menu-item.danger{ color:var(--danger-text); }
+  .user-menu-item.danger:hover{ background:var(--danger-bg); }
+  .user-menu-divider{ height:1px; background:var(--border-soft); margin:6px 4px; }
+
+  /* ---------- profile / memory panels ---------- */
+  .profile-readonly{ font-size:13.5px; color:var(--ink-700); padding:9px 12px; background:var(--pink-50); border-radius:10px; }
+  .memory-section{ margin:18px 0; }
+  .memory-section h3{ font-size:13px; color:var(--pink-600); margin:0 0 10px; }
+  .memory-add-row{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .memory-add-row input{
+    flex:1 1 120px; min-width:0;
+    background:var(--pink-50); border:1.5px solid var(--border-soft); color:var(--ink-900);
+    border-radius:10px; padding:9px 12px; font-family:inherit; font-size:13.5px; outline:none;
+  }
+  .memory-add-row input:focus{ border-color:var(--pink-400); background:#fff; }
+  .memory-add-row .header-icon-btn{ flex:0 0 auto; }
+  .draft-item-badge{
+    font-size:10.5px; font-weight:700; color:var(--pink-600); background:var(--pink-100);
+    border-radius:999px; padding:2px 8px; margin-left:8px; white-space:nowrap;
+  }
 
   /* ---------- preview column ---------- */
   .preview-col{ position:sticky; top:22px; }
@@ -1406,6 +1461,72 @@
   </div>
 </div>
 
+<!-- ===================== PROFILE PANEL ===================== -->
+<div class="hidden" id="profilePanel">
+  <div class="my-drafts-card">
+    <div class="my-drafts-card-head">
+      <h2>โปรไฟล์</h2>
+      <button type="button" class="my-drafts-close" id="profileCloseBtn" aria-label="ปิด">✕</button>
+    </div>
+    <div class="field">
+      <label>อีเมล</label>
+      <div class="profile-readonly" id="profileEmail"></div>
+    </div>
+    <div class="field">
+      <label>เข้าสู่ระบบผ่าน</label>
+      <div class="profile-readonly" id="profileProvider"></div>
+    </div>
+    <div class="field">
+      <label for="profileDisplayName">ชื่อที่แสดง</label>
+      <input type="text" id="profileDisplayName" placeholder="เช่น จรินญา วดรุจฉัตร">
+    </div>
+    <div class="hint" id="profilePasswordHint"></div>
+    <button type="button" class="btn btn-primary" id="profileSaveBtn">บันทึก</button>
+    <div class="status" id="profileStatus"></div>
+  </div>
+</div>
+
+<!-- ===================== MEMORY PANEL (ข้อมูลส่วนตัว & Memory) ===================== -->
+<div class="hidden" id="memoryPanel">
+  <div class="my-drafts-card memory-card">
+    <div class="my-drafts-card-head">
+      <h2>ข้อมูลส่วนตัว &amp; Memory</h2>
+      <button type="button" class="my-drafts-close" id="memoryCloseBtn" aria-label="ปิด">✕</button>
+    </div>
+    <p class="auth-sub">ข้อมูลเหล่านี้ใช้ pre-fill ฟอร์มอัตโนมัติตอนเริ่มร่างใหม่ ช่วยประหยัดเวลากรอกซ้ำ (ไม่มีผลกับร่างที่เปิดจากเมนู "ร่างของฉัน" หรือลิงก์ เพราะข้อมูลของร่างนั้นมีอยู่แล้ว)</p>
+
+    <div class="memory-section">
+      <h3>🏢 หน่วยงานของฉัน</h3>
+      <div class="field">
+        <label for="memOrgName">ชื่อหน่วยงาน</label>
+        <input type="text" id="memOrgName" placeholder="เช่น จุฬาลงกรณ์มหาวิทยาลัย">
+      </div>
+    </div>
+
+    <div class="memory-section">
+      <h3>✍️ รายชื่อผู้ลงนาม</h3>
+      <div id="memSignerList"></div>
+      <div class="memory-add-row">
+        <input type="text" id="memSignerNameInput" placeholder="ชื่อ-นามสกุล">
+        <input type="text" id="memSignerPosInput" placeholder="ตำแหน่ง">
+        <button type="button" class="header-icon-btn" id="memSignerAddBtn">+ เพิ่ม</button>
+      </div>
+    </div>
+
+    <div class="memory-section">
+      <h3>📇 สมุดที่อยู่หน่วยงาน</h3>
+      <div id="memAddressList"></div>
+      <div class="memory-add-row">
+        <input type="text" id="memAddressInput" placeholder="เช่น คณบดีคณะวิศวกรรมศาสตร์">
+        <button type="button" class="header-icon-btn" id="memAddressAddBtn">+ เพิ่ม</button>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primary" id="memorySaveBtn">บันทึกทั้งหมด</button>
+    <div class="status" id="memoryStatus"></div>
+  </div>
+</div>
+
 <div class="app-shell">
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -1473,9 +1594,24 @@
       <p class="subtitle">ตามแบบฟอร์มบันทึกข้อความของจุฬาลงกรณ์มหาวิทยาลัย — บอกประเด็นคร่าวๆ ให้ AI ช่วยร่าง พร้อมดาวน์โหลด .docx</p>
     </div>
     <div class="app-head-actions">
-      <span class="user-badge" id="userBadge"></span>
-      <button type="button" class="header-icon-btn" id="myDraftsBtn">📂 ร่างของฉัน</button>
-      <button type="button" class="header-icon-btn" id="logoutBtn">ออกจากระบบ</button>
+      <div class="user-menu" id="userMenu">
+        <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false">
+          <span class="user-avatar" id="userAvatar"></span>
+          <span class="user-menu-name" id="userMenuName"></span>
+          <span class="user-menu-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="user-menu-dropdown hidden" id="userMenuDropdown">
+          <div class="user-menu-head">
+            <div class="user-menu-head-name" id="userMenuHeadName"></div>
+            <div class="user-menu-head-email" id="userMenuHeadEmail"></div>
+          </div>
+          <button type="button" class="user-menu-item" id="openProfileBtn">👤 โปรไฟล์</button>
+          <button type="button" class="user-menu-item" id="openMemoryBtn">🏢 ข้อมูลส่วนตัว &amp; Memory</button>
+          <button type="button" class="user-menu-item" id="myDraftsBtn">📂 ร่างของฉัน</button>
+          <div class="user-menu-divider"></div>
+          <button type="button" class="user-menu-item danger" id="logoutBtn">ออกจากระบบ</button>
+        </div>
+      </div>
       <button type="button" class="preview-toggle-btn" id="previewToggleBtn" aria-pressed="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
         <span id="previewToggleLabel">ซ่อนตัวอย่างเอกสาร</span>
@@ -3115,7 +3251,10 @@ docx/dist/index.mjs:
     el('authGate').classList.add('hidden');
     el('authCardRecovery').classList.add('hidden');
     el('authCardNormal').classList.remove('hidden');
-    el('userBadge').textContent = (session.user && session.user.email) || '';
+    // The user-menu module (separate script block below) fills in the
+    // header avatar/name/email — it registers its own onAuthStateChange
+    // listener, which supabase-js immediately replays the current session
+    // into (event "INITIAL_SESSION"), so it doesn't need anything from here.
     // Only once per page load — onAuthStateChange also fires on token
     // refresh, which shouldn't re-trigger the ?doc= load.
     if(!didInitialLoad){
@@ -3389,6 +3528,297 @@ docx/dist/index.mjs:
   el('myDraftsPanel').addEventListener('click', function(e){
     if(e.target === el('myDraftsPanel')) el('myDraftsPanel').classList.add('hidden');
   });
+})();
+</script>
+
+<!-- ===================== ACCOUNT (user menu, profile, "ข้อมูลส่วนตัว & -->
+<!-- Memory" pre-fill data) — a separate module from the auth one above so -->
+<!-- that file doesn't grow into a second responsibility; both share the -->
+<!-- same Supabase client via window.__auth.client. =========== -->
+<script>
+(function(){
+  "use strict";
+  var M = window.__memoApp;
+  if(!M || !window.__auth || !window.__auth.client){
+    console.error('account module: __memoApp or __auth.client not found');
+    return;
+  }
+  var sb = window.__auth.client;
+
+  function el(id){ return document.getElementById(id); }
+  function uid(){ return 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  // ---------- user menu dropdown ----------
+  function closeUserMenu(){
+    el('userMenuDropdown').classList.add('hidden');
+    el('userMenuTrigger').setAttribute('aria-expanded', 'false');
+  }
+  function toggleUserMenu(){
+    var isOpen = !el('userMenuDropdown').classList.contains('hidden');
+    if(isOpen) closeUserMenu();
+    else{
+      el('userMenuDropdown').classList.remove('hidden');
+      el('userMenuTrigger').setAttribute('aria-expanded', 'true');
+    }
+  }
+  el('userMenuTrigger').addEventListener('click', function(e){ e.stopPropagation(); toggleUserMenu(); });
+  document.addEventListener('click', function(e){
+    if(!el('userMenu').contains(e.target)) closeUserMenu();
+  });
+
+  function displayNameFor(session){
+    var meta = (session.user && session.user.user_metadata) || {};
+    return meta.display_name || meta.full_name || meta.name || (session.user && session.user.email) || '';
+  }
+  function providerFor(session){
+    return (session.user && session.user.app_metadata && session.user.app_metadata.provider) || 'email';
+  }
+  function updateUserMenuUI(session){
+    var name = displayNameFor(session);
+    var email = (session.user && session.user.email) || '';
+    var avatarUrl = (session.user && session.user.user_metadata && session.user.user_metadata.avatar_url) || '';
+    el('userMenuName').textContent = name;
+    el('userMenuHeadName').textContent = name;
+    el('userMenuHeadEmail').textContent = email;
+    var avatar = el('userAvatar');
+    if(avatarUrl){
+      avatar.style.backgroundImage = 'url(' + avatarUrl + ')';
+      avatar.textContent = '';
+    }else{
+      avatar.style.backgroundImage = '';
+      avatar.textContent = (name || email || '?').trim().slice(0, 1);
+    }
+  }
+
+  // ---------- "ข้อมูลส่วนตัว & Memory" (pre-fill data) ----------
+  var memoryData = { orgName: '', signers: [], addressBook: [] };
+  function normalizeMemory(raw){
+    raw = raw || {};
+    return {
+      orgName: typeof raw.orgName === 'string' ? raw.orgName : '',
+      signers: Array.isArray(raw.signers) ? raw.signers : [],
+      addressBook: Array.isArray(raw.addressBook) ? raw.addressBook : []
+    };
+  }
+  async function loadProfileMemory(){
+    try{
+      var result = await M.apiFetchJson('/api/profile', null, 'GET');
+      memoryData = normalizeMemory(result.data);
+      applyMemoryPrefill();
+    }catch(err){ console.error('loadProfileMemory failed', err); }
+  }
+  // Only for a genuinely fresh draft — never on top of a ?doc= load (that
+  // has its own saved values, including deliberately-blank ones) and never
+  // clobbering something the user already started typing.
+  function applyMemoryPrefill(){
+    if(new URLSearchParams(location.search).get('doc')) return;
+    if(memoryData.orgName && !M.el('orgName').value){
+      M.el('orgName').value = memoryData.orgName;
+      M.el('orgName').dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    var def = memoryData.signers.filter(function(s){ return s.isDefault; })[0];
+    if(def && !M.el('signerName').value){
+      M.el('signerName').value = def.name || '';
+      M.el('signerPosition').value = def.position || '';
+      M.el('signerName').dispatchEvent(new Event('input', { bubbles: true }));
+      M.el('signerPosition').dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  var didLoadMemory = false;
+  // supabase-js replays the current session into a new listener right away
+  // (event "INITIAL_SESSION"), so this alone covers both "already signed
+  // in when this script runs" and "signs in later" — no separate
+  // getSession() call needed.
+  sb.auth.onAuthStateChange(function(event, session){
+    if(!session || event === 'PASSWORD_RECOVERY') return;
+    updateUserMenuUI(session);
+    if(!didLoadMemory){
+      didLoadMemory = true;
+      loadProfileMemory();
+    }
+  });
+
+  // ---------- profile panel ----------
+  el('openProfileBtn').addEventListener('click', function(){
+    closeUserMenu();
+    var session = window.__auth.session;
+    if(!session) return;
+    el('profileEmail').textContent = session.user.email || '';
+    var provider = providerFor(session);
+    el('profileProvider').textContent = provider === 'google' ? 'Google' : 'อีเมล/รหัสผ่าน';
+    el('profilePasswordHint').textContent = provider === 'google'
+      ? 'บัญชีนี้เข้าสู่ระบบผ่าน Google — ไม่มีรหัสผ่านให้เปลี่ยนในระบบนี้'
+      : 'ลืมรหัสผ่าน? ออกจากระบบแล้วกด "ลืมรหัสผ่าน?" ที่หน้าเข้าสู่ระบบ';
+    el('profileDisplayName').value = displayNameFor(session);
+    M.hideStatus('profileStatus');
+    el('profilePanel').classList.remove('hidden');
+  });
+  el('profileCloseBtn').addEventListener('click', function(){ el('profilePanel').classList.add('hidden'); });
+  el('profilePanel').addEventListener('click', function(e){
+    if(e.target === el('profilePanel')) el('profilePanel').classList.add('hidden');
+  });
+
+  el('profileSaveBtn').addEventListener('click', async function(){
+    var name = el('profileDisplayName').value.trim();
+    var btn = el('profileSaveBtn');
+    btn.disabled = true;
+    M.hideStatus('profileStatus');
+    try{
+      var result = await sb.auth.updateUser({ data: { display_name: name } });
+      if(result.error) throw result.error;
+      if(result.data && result.data.user && window.__auth.session){
+        window.__auth.session.user = result.data.user; // avoid waiting on the USER_UPDATED event for the header to refresh
+        updateUserMenuUI(window.__auth.session);
+      }
+      M.showStatus('profileStatus', 'บันทึกแล้ว', 'ok');
+    }catch(err){
+      M.showStatus('profileStatus', (err && err.message) || 'บันทึกไม่สำเร็จ กรุณาลองใหม่', 'err');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- memory panel ----------
+  function renderSignerList(){
+    var list = el('memSignerList');
+    list.innerHTML = '';
+    if(!memoryData.signers.length){
+      list.innerHTML = '<div class="draft-empty">ยังไม่มีรายชื่อผู้ลงนาม</div>';
+      return;
+    }
+    memoryData.signers.forEach(function(s){
+      var item = document.createElement('div');
+      item.className = 'draft-item';
+
+      var main = document.createElement('button');
+      main.type = 'button';
+      main.className = 'draft-item-main';
+      main.title = 'คลิกเพื่อตั้งเป็นค่าเริ่มต้น';
+      var title = document.createElement('div');
+      title.className = 'draft-item-title';
+      title.textContent = s.name;
+      if(s.isDefault){
+        var badge = document.createElement('span');
+        badge.className = 'draft-item-badge';
+        badge.textContent = 'ค่าเริ่มต้น';
+        title.appendChild(badge);
+      }
+      var pos = document.createElement('div');
+      pos.className = 'draft-item-date';
+      pos.textContent = s.position || '';
+      main.appendChild(title);
+      main.appendChild(pos);
+      main.addEventListener('click', function(){
+        memoryData.signers.forEach(function(x){ x.isDefault = (x.id === s.id); });
+        renderSignerList();
+      });
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'draft-item-del';
+      del.title = 'ลบ';
+      del.textContent = '🗑';
+      del.addEventListener('click', function(){
+        memoryData.signers = memoryData.signers.filter(function(x){ return x.id !== s.id; });
+        renderSignerList();
+      });
+
+      item.appendChild(main);
+      item.appendChild(del);
+      list.appendChild(item);
+    });
+  }
+
+  function renderAddressList(){
+    var list = el('memAddressList');
+    list.innerHTML = '';
+    if(!memoryData.addressBook.length){
+      list.innerHTML = '<div class="draft-empty">ยังไม่มีที่อยู่ที่บันทึกไว้</div>';
+      return;
+    }
+    memoryData.addressBook.forEach(function(a){
+      var item = document.createElement('div');
+      item.className = 'draft-item';
+
+      var main = document.createElement('button');
+      main.type = 'button';
+      main.className = 'draft-item-main';
+      main.title = 'คลิกเพื่อใส่ในช่อง "เรียน"';
+      var title = document.createElement('div');
+      title.className = 'draft-item-title';
+      title.textContent = a.name;
+      main.appendChild(title);
+      main.addEventListener('click', function(){
+        M.el('addressee').value = a.name;
+        M.el('addressee').dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'draft-item-del';
+      del.title = 'ลบ';
+      del.textContent = '🗑';
+      del.addEventListener('click', function(){
+        memoryData.addressBook = memoryData.addressBook.filter(function(x){ return x.id !== a.id; });
+        renderAddressList();
+      });
+
+      item.appendChild(main);
+      item.appendChild(del);
+      list.appendChild(item);
+    });
+  }
+
+  el('openMemoryBtn').addEventListener('click', function(){
+    closeUserMenu();
+    el('memOrgName').value = memoryData.orgName;
+    renderSignerList();
+    renderAddressList();
+    M.hideStatus('memoryStatus');
+    el('memoryPanel').classList.remove('hidden');
+  });
+  el('memoryCloseBtn').addEventListener('click', function(){ el('memoryPanel').classList.add('hidden'); });
+  el('memoryPanel').addEventListener('click', function(e){
+    if(e.target === el('memoryPanel')) el('memoryPanel').classList.add('hidden');
+  });
+
+  el('memSignerAddBtn').addEventListener('click', function(){
+    var name = el('memSignerNameInput').value.trim();
+    var position = el('memSignerPosInput').value.trim();
+    if(!name) return;
+    memoryData.signers.push({ id: uid(), name: name, position: position, isDefault: memoryData.signers.length === 0 });
+    el('memSignerNameInput').value = '';
+    el('memSignerPosInput').value = '';
+    renderSignerList();
+  });
+  el('memAddressAddBtn').addEventListener('click', function(){
+    var name = el('memAddressInput').value.trim();
+    if(!name) return;
+    memoryData.addressBook.push({ id: uid(), name: name });
+    el('memAddressInput').value = '';
+    renderAddressList();
+  });
+
+  el('memorySaveBtn').addEventListener('click', async function(){
+    memoryData.orgName = el('memOrgName').value.trim();
+    var btn = el('memorySaveBtn');
+    btn.disabled = true;
+    M.hideStatus('memoryStatus');
+    try{
+      await M.apiFetchJson('/api/profile', { data: memoryData }, 'PUT');
+      M.showStatus('memoryStatus', 'บันทึกทั้งหมดแล้ว', 'ok');
+    }catch(err){
+      M.showStatus('memoryStatus', M.apiErrorMessage(err), 'err');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  // clicking these (now inside the dropdown) should close it too — their
+  // own click handlers (open drafts panel / sign out) are wired elsewhere
+  el('myDraftsBtn').addEventListener('click', closeUserMenu);
+  el('logoutBtn').addEventListener('click', closeUserMenu);
 })();
 </script>
 
