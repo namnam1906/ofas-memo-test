@@ -391,27 +391,29 @@
   .draft-empty{ font-size:12.5px; color:var(--ink-muted); padding:20px 4px; text-align:center; }
 
   /* ---------- user menu (header dropdown) ---------- */
-  .user-menu{ position:relative; }
+  /* lives in .sidebar-foot — a full-width row, dropdown opens upward
+     since the trigger sits at the bottom of a tall sidebar */
+  .user-menu{ position:relative; margin-bottom:10px; }
   .user-menu-trigger{
-    display:flex; align-items:center; gap:8px;
+    display:flex; align-items:center; gap:8px; width:100%;
     background:#fff; border:1.5px solid var(--pink-200); border-radius:999px;
-    padding:5px 12px 5px 5px; cursor:pointer; font-family:inherit;
+    padding:6px 12px 6px 6px; cursor:pointer; font-family:inherit;
   }
   .user-menu-trigger:hover{ background:var(--pink-50); border-color:var(--pink-400); }
   .user-avatar{
-    width:26px; height:26px; border-radius:50%; flex:0 0 auto;
+    width:28px; height:28px; border-radius:50%; flex:0 0 auto;
     background:linear-gradient(135deg, var(--pink-400), var(--pink-600));
-    color:#fff; font-size:11.5px; font-weight:700;
+    color:#fff; font-size:12px; font-weight:700;
     display:flex; align-items:center; justify-content:center;
     background-size:cover; background-position:center;
     text-transform:uppercase;
   }
-  .user-menu-name{ font-size:12.5px; font-weight:600; color:var(--ink-900); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .user-menu-chevron{ font-size:10px; color:var(--ink-muted); }
+  .user-menu-name{ flex:1 1 auto; min-width:0; text-align:left; font-size:12.5px; font-weight:600; color:var(--ink-900); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-menu-chevron{ flex:0 0 auto; font-size:10px; color:var(--ink-muted); }
   .user-menu-dropdown{
-    position:absolute; top:calc(100% + 8px); right:0; z-index:950;
-    width:230px; background:var(--bg-card); border:1px solid var(--border-soft);
-    border-radius:14px; padding:8px; box-shadow:0 16px 40px -16px rgba(46,39,51,.35);
+    position:absolute; bottom:calc(100% + 8px); left:0; right:0; z-index:950;
+    background:var(--bg-card); border:1px solid var(--border-soft);
+    border-radius:14px; padding:8px; box-shadow:0 -16px 40px -16px rgba(46,39,51,.35);
   }
   .user-menu-dropdown.hidden{ display:none; }
   .user-menu-head{ padding:8px 10px 10px; border-bottom:1px solid var(--border-soft); margin-bottom:6px; }
@@ -1581,19 +1583,6 @@
     </nav>
 
     <div class="sidebar-foot">
-      <div class="sidebar-note">ระบบยังอยู่ในระยะ Prototype — ประเภทเอกสารอื่นนอกจากบันทึกข้อความยังไม่เปิดใช้งาน</div>
-    </div>
-  </aside>
-
-  <div class="shell">
-
-  <header class="app-head">
-    <div class="seal">บ.ท.</div>
-    <div class="app-head-text">
-      <h1>ผู้ช่วยร่างบันทึกข้อความ</h1>
-      <p class="subtitle">ตามแบบฟอร์มบันทึกข้อความของจุฬาลงกรณ์มหาวิทยาลัย — บอกประเด็นคร่าวๆ ให้ AI ช่วยร่าง พร้อมดาวน์โหลด .docx</p>
-    </div>
-    <div class="app-head-actions">
       <div class="user-menu" id="userMenu">
         <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false">
           <span class="user-avatar" id="userAvatar"></span>
@@ -1612,6 +1601,19 @@
           <button type="button" class="user-menu-item danger" id="logoutBtn">ออกจากระบบ</button>
         </div>
       </div>
+      <div class="sidebar-note">ระบบยังอยู่ในระยะ Prototype — ประเภทเอกสารอื่นนอกจากบันทึกข้อความยังไม่เปิดใช้งาน</div>
+    </div>
+  </aside>
+
+  <div class="shell">
+
+  <header class="app-head">
+    <div class="seal">บ.ท.</div>
+    <div class="app-head-text">
+      <h1>ผู้ช่วยร่างบันทึกข้อความ</h1>
+      <p class="subtitle">ตามแบบฟอร์มบันทึกข้อความของจุฬาลงกรณ์มหาวิทยาลัย — บอกประเด็นคร่าวๆ ให้ AI ช่วยร่าง พร้อมดาวน์โหลด .docx</p>
+    </div>
+    <div class="app-head-actions">
       <button type="button" class="preview-toggle-btn" id="previewToggleBtn" aria-pressed="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
         <span id="previewToggleLabel">ซ่อนตัวอย่างเอกสาร</span>
