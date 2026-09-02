@@ -1445,6 +1445,7 @@
         </div>
 
         <button class="btn btn-primary" id="downloadBtn">ดาวน์โหลดเป็น .docx</button>
+        <button class="btn btn-secondary" id="saveDraftBtn">🔗 บันทึกร่าง / สร้างลิงก์แชร์</button>
         <div class="status" id="downloadStatus"></div>
       </div>
 
@@ -1968,14 +1969,15 @@ docx/dist/index.mjs:
   // prompts and holds the LLM API key (Anthropic or Gemini, picked by
   // LLM_PROVIDER in wrangler.toml); the client only ever sends the raw
   // field values a person typed.
-  async function apiFetchJson(path, body){
+  async function apiFetchJson(path, body, method){
     var res;
+    var opts = { method: method || 'POST' };
+    if(body !== null && body !== undefined){
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(body);
+    }
     try{
-      res = await fetch(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      res = await fetch(path, opts);
     }catch(err){
       throw { code: 'network_error', message: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' };
     }
@@ -2044,6 +2046,97 @@ docx/dist/index.mjs:
     }
   });
 
+  // ---------- shared form-state snapshot (download + save draft both use this) ----------
+  function collectDocumentData(){
+    return {
+      orgName: el('orgName').value.trim(),
+      phone: el('phone').value.trim(),
+      fax: el('fax').value.trim(),
+      refNo: el('refNo').value.trim(),
+      dateText: thaiDateFromInput(),
+      subject: el('subject').value.trim(),
+      addressee: el('addressee').value.trim(),
+      attachments: getAttachments(),
+      bodyParagraphs: getBodyParagraphs(),
+      signerName: el('signerName').value.trim(),
+      signerPosition: el('signerPosition').value.trim(),
+      logoDataUrl: state.logoDataUrl
+    };
+  }
+
+  function applyDocumentData(data){
+    if(!data) return;
+    if(data.orgName !== undefined) el('orgName').value = data.orgName || '';
+    if(data.phone !== undefined) el('phone').value = data.phone || '';
+    if(data.fax !== undefined) el('fax').value = data.fax || '';
+    if(data.refNo !== undefined) el('refNo').value = data.refNo || '';
+    if(data.subject !== undefined) el('subject').value = data.subject || '';
+    if(data.addressee !== undefined) el('addressee').value = data.addressee || '';
+    if(data.signerName !== undefined) el('signerName').value = data.signerName || '';
+    if(data.signerPosition !== undefined) el('signerPosition').value = data.signerPosition || '';
+    if(data.logoDataUrl) state.logoDataUrl = data.logoDataUrl;
+    if(Array.isArray(data.bodyParagraphs) && data.bodyParagraphs.length){
+      setBodyParagraphs(data.bodyParagraphs);
+    }
+    // re-render bindings tied to these inputs (preview spans, placeholders, etc.)
+    ['orgName','phone','fax','refNo','subject','addressee','signerName','signerPosition'].forEach(function(id){
+      el(id).dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  // ---------- save draft to D1 + shareable link ----------
+  async function saveDraft(triggerBtnId, statusElId){
+    statusElId = statusElId || 'downloadStatus';
+    hideStatus(statusElId);
+
+    var paragraphs = getBodyParagraphs();
+    if(paragraphs.length === 0){
+      showStatus(statusElId, 'ยังไม่มีเนื้อความ กรุณาร่างด้วย AI หรือพิมพ์เนื้อหาในตัวอย่างก่อน', 'err');
+      return;
+    }
+
+    var data = collectDocumentData();
+    var btn = el(triggerBtnId || 'saveDraftBtn');
+    btn.disabled = true;
+    var origLabel = btn.textContent;
+    btn.textContent = 'กำลังบันทึก...';
+
+    try{
+      var result = await apiFetchJson('/api/documents', { title: data.subject || null, data: data });
+      var shareUrl = location.origin + location.pathname + '?doc=' + encodeURIComponent(result.id);
+
+      try{ await navigator.clipboard.writeText(shareUrl); }catch(e){ /* clipboard may be unavailable — link is still shown below */ }
+
+      // remember locally so this browser can find its own saved drafts again
+      try{
+        var saved = JSON.parse(localStorage.getItem('memoSavedDrafts') || '[]');
+        saved.unshift({ id: result.id, title: data.subject || '(ไม่มีชื่อเรื่อง)', savedAt: result.createdAt });
+        localStorage.setItem('memoSavedDrafts', JSON.stringify(saved.slice(0, 50)));
+      }catch(e){ /* localStorage unavailable — not critical */ }
+
+      showStatus(statusElId, 'บันทึกร่างแล้ว (คัดลอกลิงก์ให้อัตโนมัติ) เปิดลิงก์นี้เพื่อกลับมาแก้ไขต่อ: ' + shareUrl, 'ok');
+    }catch(err){
+      console.error(err);
+      showStatus(statusElId, apiErrorMessage(err), 'err');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = origLabel;
+    }
+  }
+
+  // If the page was opened with ?doc=<id>, load that saved draft into the form.
+  (function loadDraftFromQuery(){
+    var docId = new URLSearchParams(location.search).get('doc');
+    if(!docId) return;
+    apiFetchJson('/api/documents/' + encodeURIComponent(docId), null, 'GET').then(function(result){
+      applyDocumentData(result.data);
+      showStatus('genStatus', 'โหลดร่างที่บันทึกไว้เรียบร้อย', 'ok');
+    }).catch(function(err){
+      console.error(err);
+      showStatus('genStatus', 'โหลดร่างที่บันทึกไว้ไม่สำเร็จ: ' + apiErrorMessage(err), 'err');
+    });
+  })();
+
   // ---------- download docx ----------
   // Built and saved entirely client-side (window.DocxGen, the bundled
   // docx + FileSaver.js code above) — no server round-trip for the file
@@ -2062,24 +2155,8 @@ docx/dist/index.mjs:
       return;
     }
 
-    var subject = el('subject').value.trim();
-    var signerName = el('signerName').value.trim();
-    var signerPos = el('signerPosition').value.trim();
-
-    var data = {
-      orgName: el('orgName').value.trim(),
-      phone: el('phone').value.trim(),
-      fax: el('fax').value.trim(),
-      refNo: el('refNo').value.trim(),
-      dateText: thaiDateFromInput(),
-      subject: subject,
-      addressee: el('addressee').value.trim(),
-      attachments: getAttachments(),
-      bodyParagraphs: paragraphs,
-      signerName: signerName,
-      signerPosition: signerPos,
-      logoDataUrl: state.logoDataUrl
-    };
+    var data = collectDocumentData();
+    var subject = data.subject;
 
     var btn = el(triggerBtnId || 'downloadBtn');
     btn.disabled = true;
@@ -2101,6 +2178,7 @@ docx/dist/index.mjs:
   }
 
   el('downloadBtn').addEventListener('click', function(){ performDownload('downloadBtn'); });
+  el('saveDraftBtn').addEventListener('click', function(){ saveDraft('saveDraftBtn'); });
 
   // ---------- expose shared internals for the chat-mode module (separate script block below) ----------
   window.__memoApp = {
@@ -2114,7 +2192,9 @@ docx/dist/index.mjs:
     hideStatus: hideStatus,
     apiFetchJson: apiFetchJson,
     apiErrorMessage: apiErrorMessage,
-    performDownload: performDownload
+    performDownload: performDownload,
+    saveDraft: saveDraft,
+    collectDocumentData: collectDocumentData
   };
 
 })();
