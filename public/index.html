@@ -512,6 +512,7 @@
     padding:0;
   }
   .revert-edits-btn:hover{ background:var(--pink-50); border-color:var(--pink-300); }
+  .revert-edits-btn .ic{ width:1.3em; height:1.3em; }
   .zoom-controls{ display:flex; gap:6px; }
   .zoom-controls button{
     width:28px;height:28px; border-radius:8px; border:1.5px solid var(--border-soft);
@@ -1409,6 +1410,10 @@
   }
   .missing-jump-btn:hover{ background:#FFF9E8; }
   .chat-preview-dl-btn{ width:auto; margin-top:0; padding:7px 14px; font-size:12px; }
+  /* these buttons run a bit small (font-size:12px above), so their icon —
+     sized in em, same as everywhere else — reads too small too; bump it
+     up on its own rather than growing the button's text along with it */
+  .chat-preview-dl-btn .ic{ width:1.35em; height:1.35em; }
   @keyframes jumpFlash{
     0%, 100%{ box-shadow:0 0 0 0 rgba(239,93,160,0); }
     30%{ box-shadow:0 0 0 4px rgba(239,93,160,.45); }
