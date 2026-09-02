@@ -2015,8 +2015,11 @@ docx/dist/index.mjs:
     // exactly), but that's wider/taller than the preview column, so you only
     // ever see a scrolled-in crop of it — which makes the (correctly-sized)
     // text read as oversized. Starting a bit zoomed out shows the whole page
-    // at a glance, like a normal document preview.
-    zoom: 0.75,
+    // at a glance, like a normal document preview — 0.9 rather than the old
+    // 0.75 so the text itself reads more comfortably by default (this only
+    // scales the preview's display, not the actual pt sizes used in the
+    // .docx, so it stays accurate to what Word shows).
+    zoom: 0.9,
     // id of the D1 `documents` row currently loaded into the form, if any —
     // set after the first successful save (or when opening a saved draft),
     // so subsequent "บันทึกร่าง" clicks UPDATE that row (PUT) instead of
