@@ -806,6 +806,20 @@
     border-radius:10px;
     padding:9px 10px;
   }
+
+  .sidebar-recent{ padding-top:14px; border-top:1px solid var(--border-soft); }
+  .sidebar-recent.hidden{ display:none; }
+  .sidebar-recent-label{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--ink-muted); padding:0 8px 8px;
+  }
+  .sidebar-recent-item{
+    display:block; width:100%; text-align:left; background:none; border:none;
+    font-family:inherit; font-size:12.5px; color:var(--ink-700); font-weight:500;
+    padding:7px 8px; border-radius:8px; cursor:pointer;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .sidebar-recent-item:hover{ background:var(--pink-50); color:var(--pink-600); }
   /* width:100% (not just flex:1) matters here: .shell also has its own
      margin:0 auto (for desktop centering when content is narrower than
      max-width), and a flex item's auto margins take priority over
@@ -1472,7 +1486,7 @@
 <div class="hidden" id="myDraftsPanel">
   <div class="my-drafts-card">
     <div class="my-drafts-card-head">
-      <h2>ร่างของฉัน</h2>
+      <h2>ร่างบันทึกของฉัน</h2>
       <button type="button" class="my-drafts-close" id="myDraftsCloseBtn" aria-label="ปิด">✕</button>
     </div>
     <div id="myDraftsList"></div>
@@ -1598,6 +1612,14 @@
       </button>
     </nav>
 
+    <!-- populated by loadRecentDrafts() (account module, below) — the 5 most
+         recently saved drafts (same data as the "ร่างบันทึกของฉัน" panel),
+         hidden entirely until there's at least one -->
+    <div class="sidebar-recent hidden" id="sidebarRecentDrafts">
+      <div class="sidebar-recent-label">ร่างบันทึกของฉัน</div>
+      <div id="sidebarRecentDraftsList"></div>
+    </div>
+
     <div class="sidebar-foot">
       <div class="user-menu" id="userMenu">
         <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false">
@@ -1612,7 +1634,7 @@
           </div>
           <button type="button" class="user-menu-item" id="openProfileBtn">👤 โปรไฟล์</button>
           <button type="button" class="user-menu-item" id="openMemoryBtn">🏢 ข้อมูลส่วนตัว &amp; Memory</button>
-          <button type="button" class="user-menu-item" id="myDraftsBtn">📂 ร่างของฉัน</button>
+          <button type="button" class="user-menu-item" id="myDraftsBtn">📂 ร่างบันทึกของฉัน</button>
           <div class="user-menu-divider"></div>
           <button type="button" class="user-menu-item danger" id="logoutBtn">ออกจากระบบ</button>
         </div>
@@ -2410,8 +2432,11 @@ docx/dist/index.mjs:
       var result = await apiFetchJson('/api/documents', { title: data.subject || null, data: data });
       var openUrl = location.origin + location.pathname + '?doc=' + encodeURIComponent(result.id);
       try{ await navigator.clipboard.writeText(openUrl); }catch(e){ /* clipboard may be unavailable — not critical, the draft is still saved */ }
+      // lets the account module (separate script block) refresh the sidebar's
+      // recent-drafts list without this module needing to know it exists
+      document.dispatchEvent(new CustomEvent('memo:draftSaved'));
 
-      showStatus(statusElId, 'บันทึกร่างแล้ว ดูร่างทั้งหมดของคุณได้ที่เมนู "ร่างของฉัน" (คัดลอกลิงก์เปิดร่างนี้ไว้ในคลิปบอร์ดให้แล้วด้วย)', 'ok');
+      showStatus(statusElId, 'บันทึกร่างแล้ว ดูร่างทั้งหมดของคุณได้ที่เมนู "ร่างบันทึกของฉัน" (คัดลอกลิงก์เปิดร่างนี้ไว้ในคลิปบอร์ดให้แล้วด้วย)', 'ok');
     }catch(err){
       console.error(err);
       showStatus(statusElId, apiErrorMessage(err), 'err');
@@ -3346,6 +3371,7 @@ docx/dist/index.mjs:
     if(!didInitialLoad){
       didInitialLoad = true;
       if(M && M.loadDraftFromQuery) M.loadDraftFromQuery();
+      loadRecentDrafts();
     }
   }
   function onSignedOut(){
@@ -3353,6 +3379,7 @@ docx/dist/index.mjs:
     document.body.classList.add('auth-locked');
     el('authGate').classList.remove('hidden');
     el('myDraftsPanel').classList.add('hidden');
+    el('sidebarRecentDrafts').classList.add('hidden');
     resetPasswordVisibility('authPassword', 'authPasswordToggleBtn');
   }
   // Landing here from a password-reset email link: Supabase parses the
@@ -3532,7 +3559,7 @@ docx/dist/index.mjs:
 
   el('logoutBtn').addEventListener('click', function(){ sb.auth.signOut(); });
 
-  // ---------- "ร่างของฉัน" (my drafts) panel ----------
+  // ---------- "ร่างบันทึกของฉัน" (my drafts) panel ----------
   function formatSavedAt(iso){
     try{
       return new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
@@ -3558,6 +3585,7 @@ docx/dist/index.mjs:
       await M.apiFetchJson('/api/documents/' + encodeURIComponent(id), null, 'DELETE');
       itemEl.remove();
       if(!el('myDraftsList').children.length) renderEmptyDraftsList();
+      loadRecentDrafts();
     }catch(err){
       console.error(err);
       alert(M.apiErrorMessage(err));
@@ -3616,6 +3644,42 @@ docx/dist/index.mjs:
   el('myDraftsPanel').addEventListener('click', function(e){
     if(e.target === el('myDraftsPanel')) el('myDraftsPanel').classList.add('hidden');
   });
+
+  // ---------- sidebar "ร่างบันทึกของฉัน" — the 5 most recent, one click
+  // to reopen, no delete affordance here (that's what the full panel above
+  // is for) — same data, just a quicker path to the common case ----------
+  function renderSidebarRecentDrafts(docs){
+    var section = el('sidebarRecentDrafts');
+    if(!docs.length){
+      section.classList.add('hidden');
+      return;
+    }
+    section.classList.remove('hidden');
+    var box = el('sidebarRecentDraftsList');
+    box.innerHTML = '';
+    docs.forEach(function(doc){
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'sidebar-recent-item';
+      item.textContent = doc.title || '(ไม่มีชื่อเรื่อง)';
+      item.title = doc.title || '(ไม่มีชื่อเรื่อง)';
+      item.addEventListener('click', function(){ openDraft(doc.id); });
+      box.appendChild(item);
+    });
+  }
+
+  async function loadRecentDrafts(){
+    try{
+      var result = await M.apiFetchJson('/api/documents', null, 'GET');
+      var docs = (result && result.documents) || [];
+      renderSidebarRecentDrafts(docs.slice(0, 5));
+    }catch(err){ console.error('loadRecentDrafts failed', err); }
+  }
+
+  // saveDraft() (form module) dispatches this after a successful save so
+  // a brand-new draft shows up here without this module needing to know
+  // anything about how/where saving happens.
+  document.addEventListener('memo:draftSaved', loadRecentDrafts);
 })();
 </script>
 
