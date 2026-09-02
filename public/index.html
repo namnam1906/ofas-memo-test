@@ -3443,6 +3443,13 @@ window.ICONS = {
     startNewChatSession();
     activateFormMode();
   });
+  // Opening a saved draft (from the "ร่างบันทึกของฉัน" panel or the
+  // sidebar's recent-drafts list — see openDraft() in the auth module)
+  // should always show it, even if you were sitting in chat mode: chat
+  // mode hides the form panel entirely and only reveals the preview once
+  // chat itself has drafted something, so without this the draft loaded
+  // correctly but there was nothing on screen to show it had.
+  document.addEventListener('memo:draftOpened', activateFormMode);
 
 })();
 </script>
@@ -3732,6 +3739,13 @@ window.ICONS = {
       // who wants an actual shareable link still gets one from "บันทึกร่าง"
       // (copied to the clipboard).
       M.state.currentDocId = id;
+      // Opening a draft always shows it in form/preview view, even when
+      // triggered from chat mode — chat mode hides #formColPanel entirely
+      // and only reveals the preview once chat itself has drafted
+      // something, so without this, a draft opened while chatting loaded
+      // correctly but was completely invisible (looked like it "didn't
+      // work"). Separate script block (chat module), hence the event.
+      document.dispatchEvent(new CustomEvent('memo:draftOpened'));
       M.showStatus('genStatus', 'โหลดร่างที่บันทึกไว้เรียบร้อย', 'ok');
     }catch(err){
       console.error(err);
