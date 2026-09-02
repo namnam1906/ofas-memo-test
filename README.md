@@ -93,7 +93,15 @@ npm run dev      # เปิดที่ http://localhost:8787
 5. Authentication → Sign In / Providers → เปิด **Email** (ปกติเปิดอยู่แล้วเป็นค่าเริ่มต้น)
 6. Authentication → URL Configuration → ใส่ **Site URL** และ **Redirect URLs** เป็น URL จริงของ Worker
    (เช่น `https://ofas-memo.<subdomain>.workers.dev` และ `http://localhost:8787` สำหรับ local dev) —
-   ไม่งั้นการ redirect กลับจาก Google login จะพลาด
+   **สำคัญ**: ค่าเริ่มต้นของ Supabase คือ `http://localhost:3000` ถ้าไม่แก้ตรงนี้ ลิงก์ยืนยันอีเมลตอนสมัครสมาชิก
+   (ไม่ใช่แค่ Google login) จะ redirect ไปหน้าที่เปิดไม่ได้
+7. Authentication → Providers → Email (ที่ `/dashboard/project/_/auth/providers?provider=Email`) → ตั้งกฎ
+   รหัสผ่านให้ตรงกับที่ frontend เช็คไว้ (`public/index.html` auth module, ตัวแปร `PASSWORD_PATTERN`):
+   - **Minimum password length**: `8`
+   - **Password Requirements**: เลือก "Letters and digits" (ต้องมีทั้งตัวอักษรและตัวเลข)
+
+   ฝั่ง frontend เช็คกฎเดียวกันนี้ก่อนส่งไปหา Supabase อยู่แล้ว (กันไม่ให้ผู้ใช้เห็น error หลัง round-trip) แต่การ
+   บังคับจริงต้องตั้งที่ Supabase ด้วย เพราะ frontend เป็นแค่ JavaScript ที่แก้ไข/ข้ามได้จากฝั่ง client
 
 ### เปิด Google Login เพิ่ม (ถ้าต้องการ)
 

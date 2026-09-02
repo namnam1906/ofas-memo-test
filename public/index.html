@@ -1366,7 +1366,8 @@
       </div>
       <div class="field">
         <label for="authPassword">รหัสผ่าน</label>
-        <input type="password" id="authPassword" autocomplete="current-password" required minlength="6">
+        <input type="password" id="authPassword" autocomplete="current-password" required>
+        <div class="hint hidden" id="authPasswordHint">อย่างน้อย 8 อักขระ ต้องมีทั้งตัวอักษรและตัวเลข</div>
       </div>
       <button type="submit" class="btn btn-primary" id="authSubmitBtn">เข้าสู่ระบบ</button>
       <div class="status" id="authStatus"></div>
@@ -3117,11 +3118,20 @@ docx/dist/index.mjs:
   });
 
   // ---------- login / signup form ----------
+  // Mirrors the password rule set in the Supabase dashboard (Authentication
+  // → Providers → Email → minimum length 8, "Letters and digits" required)
+  // so a weak password gets caught client-side before the round trip —
+  // Supabase still enforces the real rule server-side regardless.
+  var PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+  var PASSWORD_RULE_MESSAGE = 'รหัสผ่านต้องมีอย่างน้อย 8 อักขระ และมีทั้งตัวอักษรและตัวเลข';
+
   var mode = 'signin';
   function setMode(m){
     mode = m;
     el('authSubmitBtn').textContent = m === 'signup' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
     el('authToggleModeBtn').textContent = m === 'signup' ? 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิก';
+    el('authPasswordHint').classList.toggle('hidden', m !== 'signup');
+    el('authPassword').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
   }
   el('authToggleModeBtn').addEventListener('click', function(){
     setMode(mode === 'signup' ? 'signin' : 'signup');
@@ -3134,6 +3144,12 @@ docx/dist/index.mjs:
     var statusEl = el('authStatus');
     statusEl.className = 'status';
     statusEl.textContent = '';
+
+    if(mode === 'signup' && !PASSWORD_PATTERN.test(password)){
+      statusEl.textContent = PASSWORD_RULE_MESSAGE;
+      statusEl.className = 'status show err';
+      return;
+    }
 
     var btn = el('authSubmitBtn');
     btn.disabled = true;
