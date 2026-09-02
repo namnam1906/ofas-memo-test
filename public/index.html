@@ -352,6 +352,16 @@
     margin-top:14px; padding:4px;
   }
 
+  .password-field-wrap{ position:relative; }
+  .password-field-wrap input[type=password],
+  .password-field-wrap input[type=text]{ padding-right:38px; }
+  .password-toggle-btn{
+    position:absolute; right:2px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; font-size:15px; line-height:1;
+    color:var(--ink-muted); padding:7px; border-radius:8px;
+  }
+  .password-toggle-btn:hover{ color:var(--pink-600); background:var(--pink-100); }
+
   .app-head-actions{ margin-left:auto; display:flex; align-items:center; gap:10px; flex:0 0 auto; }
   .header-icon-btn{
     display:flex; align-items:center; gap:6px;
@@ -1423,7 +1433,10 @@
       </div>
       <div class="field" id="authPasswordField">
         <label for="authPassword">รหัสผ่าน</label>
-        <input type="password" id="authPassword" autocomplete="current-password" required>
+        <div class="password-field-wrap">
+          <input type="password" id="authPassword" autocomplete="current-password" required>
+          <button type="button" class="password-toggle-btn" id="authPasswordToggleBtn" aria-label="แสดงรหัสผ่าน" tabindex="-1">👁</button>
+        </div>
         <div class="hint hidden" id="authPasswordHint">อย่างน้อย 8 อักขระ ต้องมีทั้งตัวอักษรและตัวเลข</div>
       </div>
       <button type="submit" class="btn btn-primary" id="authSubmitBtn">เข้าสู่ระบบ</button>
@@ -1443,7 +1456,10 @@
     <form id="authRecoveryForm">
       <div class="field">
         <label for="authNewPassword">รหัสผ่านใหม่</label>
-        <input type="password" id="authNewPassword" autocomplete="new-password" required>
+        <div class="password-field-wrap">
+          <input type="password" id="authNewPassword" autocomplete="new-password" required>
+          <button type="button" class="password-toggle-btn" id="authNewPasswordToggleBtn" aria-label="แสดงรหัสผ่าน" tabindex="-1">👁</button>
+        </div>
         <div class="hint">อย่างน้อย 8 อักขระ ต้องมีทั้งตัวอักษรและตัวเลข</div>
       </div>
       <button type="submit" class="btn btn-primary" id="authRecoverySubmitBtn">ตั้งรหัสผ่านใหม่</button>
@@ -3297,6 +3313,23 @@ docx/dist/index.mjs:
 
   function el(id){ return document.getElementById(id); }
 
+  // ---------- password show/hide toggle ----------
+  function resetPasswordVisibility(inputId, btnId){
+    el(inputId).type = 'password';
+    el(btnId).textContent = '👁';
+    el(btnId).setAttribute('aria-label', 'แสดงรหัสผ่าน');
+  }
+  function setupPasswordToggle(inputId, btnId){
+    el(btnId).addEventListener('click', function(){
+      var showing = el(inputId).type === 'text';
+      el(inputId).type = showing ? 'password' : 'text';
+      el(btnId).textContent = showing ? '👁' : '🙈';
+      el(btnId).setAttribute('aria-label', showing ? 'แสดงรหัสผ่าน' : 'ซ่อนรหัสผ่าน');
+    });
+  }
+  setupPasswordToggle('authPassword', 'authPasswordToggleBtn');
+  setupPasswordToggle('authNewPassword', 'authNewPasswordToggleBtn');
+
   var didInitialLoad = false;
   function onSignedIn(session){
     window.__auth.session = session;
@@ -3320,6 +3353,7 @@ docx/dist/index.mjs:
     document.body.classList.add('auth-locked');
     el('authGate').classList.remove('hidden');
     el('myDraftsPanel').classList.add('hidden');
+    resetPasswordVisibility('authPassword', 'authPasswordToggleBtn');
   }
   // Landing here from a password-reset email link: Supabase parses the
   // recovery token from the URL and fires this event with a (temporary)
@@ -3331,6 +3365,7 @@ docx/dist/index.mjs:
     el('authGate').classList.remove('hidden');
     el('authCardNormal').classList.add('hidden');
     el('authCardRecovery').classList.remove('hidden');
+    resetPasswordVisibility('authNewPassword', 'authNewPasswordToggleBtn');
   }
 
   sb.auth.onAuthStateChange(function(event, session){
