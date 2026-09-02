@@ -2836,7 +2836,14 @@ window.ICONS = {
   function computeSuggestedChips(){
     var byKey = {};
     loadHistoryList().forEach(function(session){
-      var text = (session.title || '').trim();
+      // The full original first message, not session.title — that's
+      // deliberately truncated with a trailing "…" for the history-list
+      // display (see deriveSessionTitle()), and a suggestion chip needs to
+      // insert the *whole* thing into the chat input when clicked, not a
+      // cut-off fragment. Falls back to title for older history entries
+      // saved before chatMessages was guaranteed present.
+      var firstUser = (session.chatMessages || []).filter(function(m){ return m.role === 'user'; })[0];
+      var text = ((firstUser && firstUser.content) || session.title || '').trim();
       if(!text || text === 'แชทใหม่') return;
       var key = text.replace(/\s+/g, ' ');
       var entry = byKey[key];
@@ -2869,7 +2876,11 @@ window.ICONS = {
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'chip-btn';
-      btn.textContent = text;
+      // Only the visible label is shortened, so one long request doesn't
+      // blow up the row — the click handler below always fills in the full
+      // "text", never this display-only truncation.
+      btn.textContent = text.length > 60 ? text.slice(0, 60) + '…' : text;
+      btn.title = text;
       btn.addEventListener('click', function(){ fillChatInputWith(text); });
       box.appendChild(btn);
     });
