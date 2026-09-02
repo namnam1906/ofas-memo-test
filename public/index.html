@@ -1544,6 +1544,7 @@
         <span id="missingBannerText">ยังมี 0 จุดที่ต้องระบุ</span>
         <div class="missing-banner-actions">
           <button type="button" class="missing-jump-btn" id="missingJumpBtn" title="ไปจุดที่ต้องระบุถัดไป">ถัดไป ▷</button>
+          <button type="button" class="btn btn-secondary chat-preview-dl-btn" id="chatSaveDraftBtn">🔗 บันทึกร่าง</button>
           <button type="button" class="btn btn-secondary chat-preview-dl-btn" id="chatDownloadBtn">⬇ DOCX</button>
         </div>
       </div>
@@ -2917,6 +2918,7 @@ docx/dist/index.mjs:
     updateChatHeroVisibility();
   });
   M.el('chatDownloadBtn').addEventListener('click', function(){ M.performDownload('chatDownloadBtn', 'chatStatus'); });
+  M.el('chatSaveDraftBtn').addEventListener('click', function(){ M.saveDraft('chatSaveDraftBtn', 'chatStatus'); });
 
 })();
 </script>
