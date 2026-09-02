@@ -2546,6 +2546,13 @@ window.ICONS = {
   function loadDraftFromQuery(){
     var docId = new URLSearchParams(location.search).get('doc');
     if(!docId) return;
+    // One-time load: a ?doc= link opens that draft once, then the URL
+    // cleans itself immediately (same pattern as the password-recovery
+    // token below). Without this, the link becomes "sticky" forever —
+    // a plain refresh, a browser re-suggesting this exact URL from
+    // autocomplete/history, or a fresh sign-in all keep resuming this
+    // one draft, which reads as the app being stuck on it.
+    history.replaceState(null, '', location.pathname);
     apiFetchJson('/api/documents/' + encodeURIComponent(docId), null, 'GET').then(function(result){
       applyDocumentData(result.data);
       state.currentDocId = docId;
@@ -3670,8 +3677,13 @@ window.ICONS = {
     try{
       var result = await M.apiFetchJson('/api/documents/' + encodeURIComponent(id), null, 'GET');
       M.applyDocumentData(result.data);
+      // Tracked in memory only, not written into the URL — opening a draft
+      // from this panel loads it into the current editing session; it
+      // isn't meant to make the browser's address bar (and therefore every
+      // future refresh/sign-in) permanently resume this one draft. Anyone
+      // who wants an actual shareable link still gets one from "บันทึกร่าง"
+      // (copied to the clipboard).
       M.state.currentDocId = id;
-      history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(id));
       M.showStatus('genStatus', 'โหลดร่างที่บันทึกไว้เรียบร้อย', 'ok');
     }catch(err){
       console.error(err);
