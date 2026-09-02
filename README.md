@@ -42,7 +42,7 @@ npm install
 npx wrangler login          # ล็อกอินบัญชี Cloudflare ผ่านเบราว์เซอร์
 
 # สร้าง D1 database ของโปรเจกต์ (ครั้งเดียว)
-npx wrangler d1 create ekkasarn_ai
+npx wrangler d1 create ofas_memo
 # คำสั่งข้างบนจะพิมพ์ database_id ออกมา — เอาไปแทนที่
 # "REPLACE_WITH_YOUR_D1_DATABASE_ID" ใน wrangler.toml
 

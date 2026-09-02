@@ -11,8 +11,8 @@ binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "ekkasarn_ai"
-database_id = "a66634a4-d619-46ad-9959-a3260cc33253"
+database_name = "ofas_memo"
+database_id = "8ae481b3-3d7f-4364-9310-a90d518f61c4"
 
 [vars]
 # Which LLM backs /api/draft and /api/chat: "anthropic" or "gemini".

@@ -8,8 +8,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "db:migrate:local": "wrangler d1 migrations apply ekkasarn_ai --local",
-    "db:migrate:remote": "wrangler d1 migrations apply ekkasarn_ai --remote"
+    "db:migrate:local": "wrangler d1 migrations apply ofas_memo --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ofas_memo --remote"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.0.0",
