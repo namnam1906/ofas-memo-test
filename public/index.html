@@ -98,7 +98,6 @@
      the classic flexbox min-width:auto trap, easy to hit on narrow phones */
   .app-head-text{ min-width:0; flex:1 1 auto; }
   .preview-toggle-btn{
-    margin-left:auto;
     flex:0 0 auto;
     display:flex;
     align-items:center;
@@ -222,6 +221,8 @@
   }
   .field input[type=text],
   .field input[type=date],
+  .field input[type=email],
+  .field input[type=password],
   .field textarea,
   .field select{
     width:100%;
@@ -315,6 +316,78 @@
   .status.show{ display:block; }
   .status.err{ background:var(--danger-bg); color:var(--danger-text); border:1px solid var(--danger-border); }
   .status.ok{ background:var(--ok-bg); color:var(--ok-text); border:1px solid var(--ok-border); }
+
+  /* ---------- auth (login gate + header user menu + my-drafts panel) ---------- */
+  body.auth-locked .app-shell{ display:none; }
+  #authGate{
+    position:fixed; inset:0;
+    background:var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    z-index:1000;
+  }
+  #authGate.hidden{ display:none; }
+  .auth-card{
+    width:100%; max-width:380px;
+    background:var(--bg-card);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius);
+    padding:28px 24px;
+    box-shadow:0 8px 24px -14px rgba(219,62,133,.18);
+  }
+  .auth-card h1{ font-size:18px; margin:0 0 4px; color:var(--ink-900); }
+  .auth-sub{ font-size:12.5px; color:var(--ink-500); margin:0 0 20px; line-height:1.5; }
+  .auth-divider{ display:flex; align-items:center; gap:10px; margin:16px 0; font-size:11.5px; color:var(--ink-muted); }
+  .auth-divider::before, .auth-divider::after{ content:''; flex:1; height:1px; background:var(--border-soft); }
+  .auth-google-btn{
+    width:100%; padding:10px 16px; border-radius:999px;
+    border:1.5px solid var(--border-soft); background:#fff; color:var(--ink-900);
+    font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .auth-google-btn:hover:not(:disabled){ background:var(--pink-50); }
+  .auth-toggle-mode{
+    width:100%; background:none; border:none; color:var(--pink-600);
+    font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer;
+    margin-top:14px; padding:4px;
+  }
+
+  .app-head-actions{ margin-left:auto; display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+  .user-badge{ font-size:12px; color:var(--ink-500); white-space:nowrap; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+  .header-icon-btn{
+    display:flex; align-items:center; gap:6px;
+    font-family:inherit; font-size:12.5px; font-weight:600;
+    color:var(--pink-600); background:#fff; border:1.5px solid var(--pink-200);
+    border-radius:999px; padding:7px 14px; cursor:pointer; white-space:nowrap;
+  }
+  .header-icon-btn:hover{ background:var(--pink-50); border-color:var(--pink-400); }
+
+  #myDraftsPanel{
+    position:fixed; inset:0; background:rgba(46,39,51,.35);
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:60px 20px; z-index:900;
+  }
+  #myDraftsPanel.hidden{ display:none; }
+  .my-drafts-card{
+    width:100%; max-width:480px; max-height:70vh; overflow-y:auto;
+    background:var(--bg-card); border:1px solid var(--border-soft);
+    border-radius:var(--radius); padding:20px;
+    box-shadow:0 20px 50px -20px rgba(46,39,51,.4);
+  }
+  .my-drafts-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .my-drafts-card-head h2{ margin:0; font-size:15px; color:var(--ink-900); }
+  .my-drafts-close{ background:none; border:none; font-size:18px; line-height:1; color:var(--ink-500); cursor:pointer; padding:4px; }
+  .draft-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 4px; border-bottom:1px solid var(--border-soft);
+  }
+  .draft-item:last-child{ border-bottom:none; }
+  .draft-item-main{ min-width:0; cursor:pointer; flex:1 1 auto; background:none; border:none; text-align:left; padding:0; font-family:inherit; }
+  .draft-item-title{ font-size:13.5px; color:var(--ink-900); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .draft-item-date{ font-size:11px; color:var(--ink-muted); margin-top:2px; }
+  .draft-item-del{ background:none; border:none; color:var(--ink-muted); cursor:pointer; font-size:13px; flex:0 0 auto; padding:4px; }
+  .draft-item-del:hover{ color:var(--danger-text); }
+  .draft-empty{ font-size:12.5px; color:var(--ink-muted); padding:20px 4px; text-align:center; }
 
   /* ---------- preview column ---------- */
   .preview-col{ position:sticky; top:22px; }
@@ -1267,8 +1340,52 @@
     outline:none;
   }
 </style>
+<!-- Supabase Auth client — only used for login/signup/session; documents
+     themselves still live in D1 (fetched via /api/*, not the Supabase SDK). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
-<body>
+<body class="auth-locked">
+
+<!-- ===================== AUTH GATE (shown until signed in) ===================== -->
+<div id="authGate">
+  <div class="auth-card">
+    <h1>เข้าสู่ระบบ</h1>
+    <p class="auth-sub" id="authSub">ต้องเข้าสู่ระบบก่อนใช้งานผู้ช่วยร่างเอกสาร (บันทึกร่างของคุณผูกกับบัญชีนี้เท่านั้น)</p>
+
+    <button type="button" class="auth-google-btn" id="authGoogleBtn">
+      <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.8-.4-4.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.6 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.3-5.1l-6.6-5.4C29.6 36.2 27 37 24 37c-5.3 0-9.7-3.4-11.3-8l-6.6 5.1C9.6 40.6 16.2 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.5l6.6 5.4C40.9 36.6 45 31 45 24c0-1.4-.1-2.8-.4-4.5z"/></svg>
+      เข้าสู่ระบบด้วย Google
+    </button>
+
+    <div class="auth-divider">หรือ</div>
+
+    <form id="authForm">
+      <div class="field">
+        <label for="authEmail">อีเมล</label>
+        <input type="email" id="authEmail" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="authPassword">รหัสผ่าน</label>
+        <input type="password" id="authPassword" autocomplete="current-password" required minlength="6">
+      </div>
+      <button type="submit" class="btn btn-primary" id="authSubmitBtn">เข้าสู่ระบบ</button>
+      <div class="status" id="authStatus"></div>
+    </form>
+    <button type="button" class="auth-toggle-mode" id="authToggleModeBtn">ยังไม่มีบัญชี? สมัครสมาชิก</button>
+  </div>
+</div>
+
+<!-- ===================== MY DRAFTS PANEL ===================== -->
+<div class="hidden" id="myDraftsPanel">
+  <div class="my-drafts-card">
+    <div class="my-drafts-card-head">
+      <h2>ร่างของฉัน</h2>
+      <button type="button" class="my-drafts-close" id="myDraftsCloseBtn" aria-label="ปิด">✕</button>
+    </div>
+    <div id="myDraftsList"></div>
+  </div>
+</div>
+
 <div class="app-shell">
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -1335,10 +1452,15 @@
       <h1>ผู้ช่วยร่างบันทึกข้อความ</h1>
       <p class="subtitle">ตามแบบฟอร์มบันทึกข้อความของจุฬาลงกรณ์มหาวิทยาลัย — บอกประเด็นคร่าวๆ ให้ AI ช่วยร่าง พร้อมดาวน์โหลด .docx</p>
     </div>
-    <button type="button" class="preview-toggle-btn" id="previewToggleBtn" aria-pressed="true">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span id="previewToggleLabel">ซ่อนตัวอย่างเอกสาร</span>
-    </button>
+    <div class="app-head-actions">
+      <span class="user-badge" id="userBadge"></span>
+      <button type="button" class="header-icon-btn" id="myDraftsBtn">📂 ร่างของฉัน</button>
+      <button type="button" class="header-icon-btn" id="logoutBtn">ออกจากระบบ</button>
+      <button type="button" class="preview-toggle-btn" id="previewToggleBtn" aria-pressed="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span id="previewToggleLabel">ซ่อนตัวอย่างเอกสาร</span>
+      </button>
+    </div>
   </header>
 
   <div class="layout">
@@ -1445,7 +1567,7 @@
         </div>
 
         <button class="btn btn-primary" id="downloadBtn">ดาวน์โหลดเป็น .docx</button>
-        <button class="btn btn-secondary" id="saveDraftBtn">🔗 บันทึกร่าง / สร้างลิงก์แชร์</button>
+        <button class="btn btn-secondary" id="saveDraftBtn">💾 บันทึกร่าง</button>
         <div class="status" id="downloadStatus"></div>
       </div>
 
@@ -1544,7 +1666,7 @@
         <span id="missingBannerText">ยังมี 0 จุดที่ต้องระบุ</span>
         <div class="missing-banner-actions">
           <button type="button" class="missing-jump-btn" id="missingJumpBtn" title="ไปจุดที่ต้องระบุถัดไป">ถัดไป ▷</button>
-          <button type="button" class="btn btn-secondary chat-preview-dl-btn" id="chatSaveDraftBtn">🔗 บันทึกร่าง</button>
+          <button type="button" class="btn btn-secondary chat-preview-dl-btn" id="chatSaveDraftBtn">💾 บันทึกร่าง</button>
           <button type="button" class="btn btn-secondary chat-preview-dl-btn" id="chatDownloadBtn">⬇ DOCX</button>
         </div>
       </div>
@@ -1973,10 +2095,17 @@ docx/dist/index.mjs:
   async function apiFetchJson(path, body, method){
     var res;
     var opts = { method: method || 'POST' };
+    var headers = {};
     if(body !== null && body !== undefined){
-      opts.headers = { 'Content-Type': 'application/json' };
+      headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
     }
+    // Every /api/* route except /api/health requires login (see src/index.ts)
+    // — attach the current Supabase access token, kept fresh by the auth
+    // module (window.__auth) via onAuthStateChange (incl. TOKEN_REFRESHED).
+    var token = window.__auth && window.__auth.session && window.__auth.session.access_token;
+    if(token) headers['Authorization'] = 'Bearer ' + token;
+    opts.headers = headers;
     try{
       res = await fetch(path, opts);
     }catch(err){
@@ -2000,6 +2129,7 @@ docx/dist/index.mjs:
       case 'upstream_error': return (err && err.message) || 'AI ไม่ตอบสนองหรือเกิดปัญหาชั่วคราว กรุณาลองใหม่อีกครั้ง';
       case 'bad_request': return (err && err.message) || 'ข้อมูลที่ส่งไม่ถูกต้อง';
       case 'server_misconfigured': return 'เซิร์ฟเวอร์ยังตั้งค่าไม่สมบูรณ์ กรุณาติดต่อผู้ดูแลระบบ';
+      case 'unauthorized': return 'เซสชันหมดอายุหรือยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่';
       case undefined: return (err && err.message) ? err.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่ในภายหลัง';
       default: return (err && err.message) || ('เกิดข้อผิดพลาด (' + code + ') กรุณาลองใหม่ในภายหลัง');
     }
@@ -2085,7 +2215,7 @@ docx/dist/index.mjs:
     });
   }
 
-  // ---------- save draft to D1 + shareable link ----------
+  // ---------- save draft to D1 (private to the signed-in user — see src/index.ts) ----------
   async function saveDraft(triggerBtnId, statusElId){
     statusElId = statusElId || 'downloadStatus';
     hideStatus(statusElId);
@@ -2104,18 +2234,10 @@ docx/dist/index.mjs:
 
     try{
       var result = await apiFetchJson('/api/documents', { title: data.subject || null, data: data });
-      var shareUrl = location.origin + location.pathname + '?doc=' + encodeURIComponent(result.id);
+      var openUrl = location.origin + location.pathname + '?doc=' + encodeURIComponent(result.id);
+      try{ await navigator.clipboard.writeText(openUrl); }catch(e){ /* clipboard may be unavailable — not critical, the draft is still saved */ }
 
-      try{ await navigator.clipboard.writeText(shareUrl); }catch(e){ /* clipboard may be unavailable — link is still shown below */ }
-
-      // remember locally so this browser can find its own saved drafts again
-      try{
-        var saved = JSON.parse(localStorage.getItem('memoSavedDrafts') || '[]');
-        saved.unshift({ id: result.id, title: data.subject || '(ไม่มีชื่อเรื่อง)', savedAt: result.createdAt });
-        localStorage.setItem('memoSavedDrafts', JSON.stringify(saved.slice(0, 50)));
-      }catch(e){ /* localStorage unavailable — not critical */ }
-
-      showStatus(statusElId, 'บันทึกร่างแล้ว (คัดลอกลิงก์ให้อัตโนมัติ) เปิดลิงก์นี้เพื่อกลับมาแก้ไขต่อ: ' + shareUrl, 'ok');
+      showStatus(statusElId, 'บันทึกร่างแล้ว ดูร่างทั้งหมดของคุณได้ที่เมนู "ร่างของฉัน" (คัดลอกลิงก์เปิดร่างนี้ไว้ในคลิปบอร์ดให้แล้วด้วย)', 'ok');
     }catch(err){
       console.error(err);
       showStatus(statusElId, apiErrorMessage(err), 'err');
@@ -2125,8 +2247,11 @@ docx/dist/index.mjs:
     }
   }
 
-  // If the page was opened with ?doc=<id>, load that saved draft into the form.
-  (function loadDraftFromQuery(){
+  // If the page was opened with ?doc=<id>, load that saved draft into the
+  // form — called once a session exists (see the auth module below), since
+  // /api/documents/:id now requires login and only returns the caller's
+  // own documents.
+  function loadDraftFromQuery(){
     var docId = new URLSearchParams(location.search).get('doc');
     if(!docId) return;
     apiFetchJson('/api/documents/' + encodeURIComponent(docId), null, 'GET').then(function(result){
@@ -2136,7 +2261,7 @@ docx/dist/index.mjs:
       console.error(err);
       showStatus('genStatus', 'โหลดร่างที่บันทึกไว้ไม่สำเร็จ: ' + apiErrorMessage(err), 'err');
     });
-  })();
+  }
 
   // ---------- download docx ----------
   // Built and saved entirely client-side (window.DocxGen, the bundled
@@ -2195,7 +2320,9 @@ docx/dist/index.mjs:
     apiErrorMessage: apiErrorMessage,
     performDownload: performDownload,
     saveDraft: saveDraft,
-    collectDocumentData: collectDocumentData
+    collectDocumentData: collectDocumentData,
+    applyDocumentData: applyDocumentData,
+    loadDraftFromQuery: loadDraftFromQuery
   };
 
 })();
@@ -2932,6 +3059,202 @@ docx/dist/index.mjs:
       var isOpen = group.classList.toggle('open');
       head.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
+  });
+})();
+</script>
+
+<!-- ===================== AUTH (Supabase — login/signup/session only; -->
+<!-- documents themselves stay in D1, reached via /api/* with the -->
+<!-- Authorization: Bearer <access_token> header apiFetchJson attaches) === -->
+<script>
+(function(){
+  "use strict";
+  var M = window.__memoApp;
+
+  // ---- Supabase project config ----
+  // Safe to ship in the client: the anon key is *designed* to be public
+  // (Supabase's own docs say so) — access control comes from the Worker
+  // verifying the JWT (src/auth.ts) and from Supabase checking the
+  // password/OAuth login itself, not from hiding either value.
+  var SUPABASE_URL = 'https://obdaeltqbtpdcejyjbxo.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9iZGFlbHRxYnRwZGNlanlqYnhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMjU3NjcsImV4cCI6MjEwMzkwMTc2N30.fDNfIZZe00uIZysdAr3I9KYwD54E_I1rOroq_sOpSbk';
+
+  if(typeof window.supabase === 'undefined'){
+    console.error('auth module: Supabase client script did not load');
+    return;
+  }
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.__auth = { client: sb, session: null };
+
+  function el(id){ return document.getElementById(id); }
+
+  var didInitialLoad = false;
+  function onSignedIn(session){
+    window.__auth.session = session;
+    document.body.classList.remove('auth-locked');
+    el('authGate').classList.add('hidden');
+    el('userBadge').textContent = (session.user && session.user.email) || '';
+    // Only once per page load — onAuthStateChange also fires on token
+    // refresh, which shouldn't re-trigger the ?doc= load.
+    if(!didInitialLoad){
+      didInitialLoad = true;
+      if(M && M.loadDraftFromQuery) M.loadDraftFromQuery();
+    }
+  }
+  function onSignedOut(){
+    window.__auth.session = null;
+    document.body.classList.add('auth-locked');
+    el('authGate').classList.remove('hidden');
+    el('myDraftsPanel').classList.add('hidden');
+  }
+
+  sb.auth.onAuthStateChange(function(_event, session){
+    if(session) onSignedIn(session); else onSignedOut();
+  });
+  sb.auth.getSession().then(function(res){
+    var session = res.data && res.data.session;
+    if(session) onSignedIn(session); else onSignedOut();
+  });
+
+  // ---------- login / signup form ----------
+  var mode = 'signin';
+  function setMode(m){
+    mode = m;
+    el('authSubmitBtn').textContent = m === 'signup' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
+    el('authToggleModeBtn').textContent = m === 'signup' ? 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิก';
+  }
+  el('authToggleModeBtn').addEventListener('click', function(){
+    setMode(mode === 'signup' ? 'signin' : 'signup');
+  });
+
+  el('authForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var email = el('authEmail').value.trim();
+    var password = el('authPassword').value;
+    var statusEl = el('authStatus');
+    statusEl.className = 'status';
+    statusEl.textContent = '';
+
+    var btn = el('authSubmitBtn');
+    btn.disabled = true;
+    try{
+      var result = mode === 'signup'
+        ? await sb.auth.signUp({ email: email, password: password })
+        : await sb.auth.signInWithPassword({ email: email, password: password });
+      if(result.error) throw result.error;
+      if(mode === 'signup' && !(result.data && result.data.session)){
+        statusEl.textContent = 'สมัครสำเร็จ กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตนก่อนเข้าสู่ระบบ';
+        statusEl.className = 'status show ok';
+      }
+      // a successful sign-in fires onAuthStateChange above, which closes the gate
+    }catch(err){
+      statusEl.textContent = (err && err.message) || 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่';
+      statusEl.className = 'status show err';
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  el('authGoogleBtn').addEventListener('click', async function(){
+    el('authGoogleBtn').disabled = true;
+    try{
+      await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: location.origin + location.pathname }
+      });
+      // browser navigates away to Google here — no further handling needed
+    }catch(err){
+      el('authGoogleBtn').disabled = false;
+      el('authStatus').textContent = (err && err.message) || 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ';
+      el('authStatus').className = 'status show err';
+    }
+  });
+
+  el('logoutBtn').addEventListener('click', function(){ sb.auth.signOut(); });
+
+  // ---------- "ร่างของฉัน" (my drafts) panel ----------
+  function formatSavedAt(iso){
+    try{
+      return new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+    }catch(e){ return iso || ''; }
+  }
+
+  async function openDraft(id){
+    el('myDraftsPanel').classList.add('hidden');
+    try{
+      var result = await M.apiFetchJson('/api/documents/' + encodeURIComponent(id), null, 'GET');
+      M.applyDocumentData(result.data);
+      history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(id));
+      M.showStatus('genStatus', 'โหลดร่างที่บันทึกไว้เรียบร้อย', 'ok');
+    }catch(err){
+      console.error(err);
+      M.showStatus('genStatus', 'โหลดร่างที่บันทึกไว้ไม่สำเร็จ: ' + M.apiErrorMessage(err), 'err');
+    }
+  }
+
+  async function deleteDraft(id, itemEl){
+    if(!confirm('ลบร่างนี้ถาวร?')) return;
+    try{
+      await M.apiFetchJson('/api/documents/' + encodeURIComponent(id), null, 'DELETE');
+      itemEl.remove();
+      if(!el('myDraftsList').children.length) renderEmptyDraftsList();
+    }catch(err){
+      console.error(err);
+      alert(M.apiErrorMessage(err));
+    }
+  }
+
+  function renderEmptyDraftsList(){
+    el('myDraftsList').innerHTML = '<div class="draft-empty">ยังไม่มีร่างที่บันทึกไว้</div>';
+  }
+
+  async function openMyDraftsPanel(){
+    el('myDraftsPanel').classList.remove('hidden');
+    var list = el('myDraftsList');
+    list.innerHTML = '<div class="draft-empty">กำลังโหลด...</div>';
+    try{
+      var result = await M.apiFetchJson('/api/documents', null, 'GET');
+      var docs = (result && result.documents) || [];
+      if(!docs.length){ renderEmptyDraftsList(); return; }
+      list.innerHTML = '';
+      docs.forEach(function(doc){
+        var item = document.createElement('div');
+        item.className = 'draft-item';
+
+        var main = document.createElement('button');
+        main.type = 'button';
+        main.className = 'draft-item-main';
+        var title = document.createElement('div');
+        title.className = 'draft-item-title';
+        title.textContent = doc.title || '(ไม่มีชื่อเรื่อง)';
+        var date = document.createElement('div');
+        date.className = 'draft-item-date';
+        date.textContent = formatSavedAt(doc.updatedAt || doc.createdAt);
+        main.appendChild(title);
+        main.appendChild(date);
+        main.addEventListener('click', function(){ openDraft(doc.id); });
+
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'draft-item-del';
+        delBtn.title = 'ลบร่างนี้';
+        delBtn.textContent = '🗑';
+        delBtn.addEventListener('click', function(){ deleteDraft(doc.id, item); });
+
+        item.appendChild(main);
+        item.appendChild(delBtn);
+        list.appendChild(item);
+      });
+    }catch(err){
+      console.error(err);
+      list.innerHTML = '<div class="draft-empty">โหลดรายการไม่สำเร็จ: ' + M.apiErrorMessage(err) + '</div>';
+    }
+  }
+
+  el('myDraftsBtn').addEventListener('click', openMyDraftsPanel);
+  el('myDraftsCloseBtn').addEventListener('click', function(){ el('myDraftsPanel').classList.add('hidden'); });
+  el('myDraftsPanel').addEventListener('click', function(e){
+    if(e.target === el('myDraftsPanel')) el('myDraftsPanel').classList.add('hidden');
   });
 })();
 </script>

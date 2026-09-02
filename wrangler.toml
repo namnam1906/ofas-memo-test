@@ -28,7 +28,15 @@ database_id = "8ae481b3-3d7f-4364-9310-a90d518f61c4"
 LLM_PROVIDER = "anthropic"
 ANTHROPIC_MODEL = "claude-opus-5"
 GEMINI_MODEL = "gemini-2.5-flash"
-# Basic per-IP abuse guard for the unauthenticated /api/* endpoints (this is
-# the "Prototype" stage — no login yet, see README's security note).
+# Basic per-IP abuse guard, on top of requiring login, for /api/draft and
+# /api/chat.
 RATE_LIMIT_MAX_REQUESTS = "20"
 RATE_LIMIT_WINDOW_SECONDS = "600"
+
+# Supabase project URL (Auth only — documents still live in D1, not
+# Supabase Postgres). Not a secret: the anon key that goes with it (set in
+# public/index.html, not here) is designed to be public too — safety comes
+# from Supabase verifying credentials and this Worker verifying the JWT,
+# not from hiding either value. TODO: replace with the real project URL
+# once it exists (see README "Setup — Supabase Auth").
+SUPABASE_URL = "https://obdaeltqbtpdcejyjbxo.supabase.co"

@@ -5,31 +5,39 @@
 ```
 Memo Assistant
       │
-      ├── ยังเป็น Prototype  ──▶  Cloudflare Worker + D1        ◀── สถานะปัจจุบันของ repo นี้
+      ├── Cloudflare Worker + D1        ◀── เอกสาร/ข้อมูลยังอยู่ที่นี่
       │
-      └── มี User/Login จริงจัง ──▶  Cloudflare Worker + Supabase (Postgres + Auth)   ◀── ขั้นถัดไป
+      └── Cloudflare Worker + Supabase Auth   ◀── สถานะปัจจุบัน — login จริงแล้ว
 ```
 
-Repo นี้ deploy ตามกิ่ง **Prototype** ก่อน (ยังไม่มีระบบสมาชิก/login) — โครงสร้างเขียนแยกชั้นไว้แล้ว
-(`src/llm/*`, `documents` table ที่มีคอลัมน์ `owner_id` รอไว้) เพื่อให้ย้ายไป Supabase Auth ทีหลังได้โดยไม่ต้อง
-เขียนใหม่ทั้งระบบ — ดู [Roadmap](#roadmap--ย้ายไป-supabase-auth) ด้านล่าง
+ทุก endpoint ต้อง login ก่อนใช้งาน (ผ่าน Supabase Auth — ดู [Setup — Supabase Auth](#setup--supabase-auth))
+เอกสารที่บันทึกไว้เป็นของแต่ละบัญชี ไม่มีใครอื่นเปิดได้แม้จะรู้ id ก็ตาม เอกสารเองยังเก็บอยู่ใน D1 เหมือนเดิม —
+ย้ายมาแค่ระบบยืนยันตัวตน ไม่ได้ย้ายทั้งฐานข้อมูลไป Supabase Postgres
 
 ## สถาปัตยกรรม
 
-- **Frontend** (`public/index.html`) — หน้าเว็บเดียวจบ (form ร่างเอกสาร + โหมดแชท + preview + ดาวน์โหลด .docx)
-  เดิมพอร์ตมาจาก Claude Artifact prototype ตัวก่อนหน้า ตอนนี้เรียก backend ของตัวเองแทน `claude.use('sample')`
-  ส่วนการสร้างไฟล์ .docx ยังทำฝั่ง client ล้วนๆ เหมือนเดิม (ไม่ต้องพึ่ง backend)
+- **Frontend** (`public/index.html`) — หน้าเว็บเดียวจบ (form ร่างเอกสาร + โหมดแชท + preview + ดาวน์โหลด .docx +
+  หน้า login) เดิมพอร์ตมาจาก Claude Artifact prototype ตัวก่อนหน้า ตอนนี้เรียก backend ของตัวเองแทน
+  `claude.use('sample')` ส่วนการสร้างไฟล์ .docx ยังทำฝั่ง client ล้วนๆ เหมือนเดิม (ไม่ต้องพึ่ง backend)
+  ระบบ login ใช้ [`@supabase/supabase-js`](https://supabase.com/docs/reference/javascript) โหลดผ่าน CDN
+  โดยตรง (ไฟล์นี้ไม่มี build step) — รองรับทั้งอีเมล/รหัสผ่านและ Google
 - **Backend** (`src/index.ts`, [Hono](https://hono.dev)) — Cloudflare Worker ตัวเดียว serve ทั้งไฟล์ static
   (ผ่าน [Workers Assets](https://developers.cloudflare.com/workers/static-assets/)) และ API:
   - `POST /api/draft` — ร่างเนื้อหาบันทึกข้อความจากฟอร์ม
   - `POST /api/chat` — โหมดแชท (คุยทีละประเด็น เก็บข้อมูลจนพอร่างได้)
-  - `POST /api/documents`, `GET /api/documents/:id` — เซฟ/โหลดสถานะเอกสารแบบไม่ระบุตัวตนใน D1
-    (ผูกกับปุ่ม "🔗 บันทึกร่าง / สร้างลิงก์แชร์" ในหน้าฟอร์มแล้ว — กดแล้วได้ลิงก์ `?doc=<id>` เปิดลิงก์นั้นซ้ำ
-    เพื่อโหลดร่างกลับเข้าฟอร์ม)
-  - `GET /api/health`
+  - `GET /api/documents`, `POST /api/documents`, `GET /api/documents/:id`, `DELETE /api/documents/:id` —
+    รายการ/เซฟ/โหลด/ลบร่างเอกสารของผู้ใช้ที่ login อยู่ ผูกกับปุ่ม "💾 บันทึกร่าง" และเมนู "📂 ร่างของฉัน"
+    ในหน้าเว็บแล้ว (ทั้งโหมดฟอร์มและโหมดแชท)
+  - `GET /api/health` — จุดเดียวที่ไม่ต้อง login
+  - ทุก route อื่นผ่าน middleware ตรวจ JWT จาก Supabase (`src/auth.ts`) ก่อนเสมอ — ไม่ login ได้ `401
+    unauthorized`
 - **LLM** (`src/llm/*`) — สลับได้ระหว่าง Anthropic (Claude) กับ Google Gemini ผ่าน env var `LLM_PROVIDER`
   โดยไม่ต้องแก้โค้ด ทั้งสอง provider ใช้ contract เดียวกัน (`LLMProvider.callJSON`)
-- **D1** — ใช้ 2 อย่างตอนนี้: (1) rate-limit counter กัน endpoint AI ถูกยิงรัว (2) ตาราง `documents` ตามข้างต้น
+- **D1** — ใช้ 2 อย่าง: (1) rate-limit counter กัน endpoint AI ถูกยิงรัว (2) ตาราง `documents` (มี `owner_id`
+  ผูกกับ Supabase user id)
+- **Supabase** — ใช้เฉพาะส่วน **Auth** (อีเมล/รหัสผ่าน + Google OAuth) ไม่ได้ใช้ Postgres/ฐานข้อมูลฝั่ง Supabase
+  เลย — เอกสารยังอยู่ใน D1 ทั้งหมด การตรวจ JWT ฝั่ง Worker ใช้ Supabase JWKS (public key) ไม่ต้องมี secret ใดๆ
+  เพิ่มบน Worker
 
 **Prompt อยู่ฝั่งเซิร์ฟเวอร์ทั้งหมด** (`src/prompts.ts`) — client ส่งแค่ field ที่กรอกจริง (เช่น `orgName`,
 `notes`, `turns`) ไม่ส่ง prompt ดิบ ป้องกันไม่ให้ endpoint ถูกใช้เป็น proxy เรียก LLM ตามใจชอบ
@@ -51,6 +59,10 @@ npx wrangler d1 create ofas_memo
 npm run db:migrate:local
 ```
 
+ต้องตั้งค่า Supabase ก่อนถึงจะ login ได้แม้ใน local dev — ดู [Setup — Supabase Auth](#setup--supabase-auth)
+ด้านล่าง (ใช้โปรเจกต์ Supabase เดียวกับ production ได้เลย ไม่ต้องแยก แค่เพิ่ม `http://localhost:8787` ใน
+Redirect URLs ถ้าจะใช้ Google login ตอน dev ด้วย)
+
 ตั้งค่า API key สำหรับ local dev ด้วยไฟล์ `.dev.vars` (ห้าม commit ไฟล์นี้ — อยู่ใน `.gitignore` แล้ว):
 
 ```bash
@@ -63,6 +75,34 @@ GEMINI_API_KEY=...
 ```bash
 npm run dev      # เปิดที่ http://localhost:8787
 ```
+
+## Setup — Supabase Auth
+
+ต้องทำครั้งเดียวก่อนใช้งานได้จริง (ทั้ง local dev และ production ใช้โปรเจกต์ Supabase เดียวกันได้ ไม่จำเป็นต้องแยก):
+
+1. สร้างบัญชี/โปรเจกต์ที่ [supabase.com](https://supabase.com) (มีแผนฟรี) — เลือก region ใกล้ผู้ใช้งาน,
+   ตั้งรหัสผ่าน database ไว้ก็ได้แต่ **ไม่ได้ใช้** (repo นี้ใช้แค่ฟีเจอร์ Auth ของ Supabase ไม่ได้ใช้ Postgres)
+2. Project Settings → API — คัดลอกสองค่านี้:
+   - **Project URL** (เช่น `https://xxxxxxxx.supabase.co`)
+   - **anon public** key (ไม่ใช่ `service_role` — ห้ามใช้ key นั้นฝั่ง client เด็ดขาด)
+3. ใส่ **Project URL** ลง 2 ที่:
+   - `wrangler.toml` → `[vars]` → `SUPABASE_URL` (แทน `REPLACE_WITH_YOUR_SUPABASE_PROJECT_REF`)
+   - `public/index.html` → ค้นหา `SUPABASE_URL` ในสคริปต์บล็อกสุดท้าย (auth module) → แทนค่าเดียวกัน
+4. ใส่ **anon public key** ลง `public/index.html` เดียวกัน ตัวแปร `SUPABASE_ANON_KEY` (ค่านี้ปลอดภัยที่จะฝังใน
+   โค้ด client — Supabase ออกแบบมาให้ public อยู่แล้ว, `.dev.vars`/secret ไม่เกี่ยวกับค่านี้)
+5. Authentication → Sign In / Providers → เปิด **Email** (ปกติเปิดอยู่แล้วเป็นค่าเริ่มต้น)
+6. Authentication → URL Configuration → ใส่ **Site URL** และ **Redirect URLs** เป็น URL จริงของ Worker
+   (เช่น `https://ofas-memo.<subdomain>.workers.dev` และ `http://localhost:8787` สำหรับ local dev) —
+   ไม่งั้นการ redirect กลับจาก Google login จะพลาด
+
+### เปิด Google Login เพิ่ม (ถ้าต้องการ)
+
+1. [Google Cloud Console](https://console.cloud.google.com) → สร้างโปรเจกต์ (หรือใช้ของเดิม) → APIs &
+   Services → Credentials → Create Credentials → **OAuth client ID** → Application type: **Web application**
+2. Authorized redirect URIs ใส่: `https://<project-ref>.supabase.co/auth/v1/callback` (หาค่านี้ได้จาก
+   Supabase dashboard → Authentication → Providers → Google — มันจะโชว์ URL ที่ต้องใส่ให้เลย)
+3. คัดลอก **Client ID** และ **Client secret** ที่ได้ ไปใส่ที่ Supabase dashboard → Authentication →
+   Providers → Google → เปิดใช้งาน แล้ววาง Client ID/Secret ตรงนั้น
 
 ## Deploy ขึ้น Cloudflare
 
@@ -106,36 +146,36 @@ Workflow นี้ deploy โค้ด + apply migration เท่านั้�
 > reasoning ระดับสูงสุดเสมอไป) ส่วน `gemini-2.5-flash` เป็นค่าเริ่มต้นฝั่ง Gemini — ชื่อรุ่นของ Gemini
 > เปลี่ยนบ่อย ควรเช็กกับเอกสารล่าสุดของ Google ก่อนใช้งานจริง
 
-## ข้อควรระวังเรื่องความปลอดภัย (สำคัญ — อ่านก่อน launch จริง)
+## ข้อควรระวังเรื่องความปลอดภัย
 
-ตอนนี้อยู่ในระยะ **Prototype ไม่มีระบบยืนยันตัวตน** endpoint `/api/draft` และ `/api/chat` เรียกได้จากใครก็ได้ที่รู้ URL
-มี rate limit พื้นฐาน (ต่อ IP ผ่าน D1, ปรับได้ที่ `RATE_LIMIT_MAX_REQUESTS`/`RATE_LIMIT_WINDOW_SECONDS` ใน
-`wrangler.toml`) กันสแปม/ต้นทุนบานปลายในระดับหนึ่ง แต่**ไม่ใช่การป้องกันที่แน่นหนา** — ก่อนเปิดให้คนนอกใช้งานจริง
-ควรอย่างน้อยหนึ่งใน:
+ทุก endpoint (ยกเว้น `/api/health`) ต้อง login ก่อนเรียกได้ — ตรวจ JWT จาก Supabase ทุกครั้งที่ฝั่ง Worker
+(`src/auth.ts`) เอกสารใน D1 ถูกกรองด้วย `owner_id` เสมอ (`WHERE owner_id = <user จาก JWT>`) เพื่อไม่ให้ผู้ใช้
+คนหนึ่งเห็น/แก้/ลบเอกสารของอีกคนได้แม้จะรู้ id ก็ตาม
 
+ยังมี rate limit ต่อ IP (ผ่าน D1, ปรับได้ที่ `RATE_LIMIT_MAX_REQUESTS`/`RATE_LIMIT_WINDOW_SECONDS` ใน
+`wrangler.toml`) เป็นชั้นป้องกันเพิ่มเติมบน `/api/draft`/`/api/chat` แม้จะ login แล้วก็ตาม กันบัญชีเดียวยิงรัวเกินไป
+
+จุดที่ยังทำเป็นขั้นถัดไปได้ (ไม่บล็อกการใช้งานตอนนี้):
+
+- Rate limit ผูกกับ user id แทน/เพิ่มเติมจาก IP ได้ (โครงเดิมใน `src/ratelimit.ts` ปรับ key ตรงๆ) — ตอนนี้ยังเป็น
+  per-IP ล้วนๆ
 - เพิ่ม Cloudflare Rate Limiting Rule ที่ระดับ dashboard เป็นชั้นป้องกันเพิ่ม (defense in depth)
-- ย้ายไปกิ่ง Supabase Auth (ดู Roadmap ด้านล่าง) แล้วผูก endpoint ทั้งสองไว้หลัง login
-
-## Roadmap: ย้ายไป Supabase Auth
-
-เมื่อพร้อมทำระบบสมาชิก/สิทธิ์ผู้ใช้จริง (กิ่งขวาของไดอะแกรมด้านบน) จุดที่ต้องแตะ:
-
-1. สร้างโปรเจกต์ Supabase, เปิด Auth (email/password หรือ OAuth ตามต้องการ)
-2. `documents.owner_id` ใน `migrations/0001_init.sql` เตรียมคอลัมน์ไว้แล้ว — เขียน migration ใหม่เพิ่ม FK
-   ไปยัง Supabase `auth.users` (หรือย้ายตาราง `documents` ทั้งก้อนไป Postgres ฝั่ง Supabase ถ้าต้องการ RLS)
-3. เพิ่ม middleware ใน `src/index.ts` ตรวจ JWT จาก Supabase ก่อนเข้าถึง `/api/draft`, `/api/chat`,
-   `/api/documents/*`
-4. D1 `rate_limit_hits` เปลี่ยนเป็น per-user quota แทน per-IP ได้ (โครงเดิมใน `src/ratelimit.ts` ปรับ key
-   จาก IP เป็น user id ได้ตรงๆ)
+- เปิด Row Level Security ถ้าย้ายตาราง `documents` ไป Supabase Postgres ในอนาคต (ตอนนี้ D1 ไม่มี RLS แบบ
+  Postgres — การกรอง `owner_id` ทำที่ชั้น application code ใน `src/index.ts` แทน)
 
 ## Endpoints
 
+ทุก path ยกเว้น `/api/health` ต้องส่ง header `Authorization: Bearer <supabase access_token>` — ไม่งั้นได้
+`401 unauthorized` (ฝั่ง frontend แนบ header นี้ให้อัตโนมัติทุกครั้งหลัง login แล้ว)
+
 | Method | Path | Body | หมายเหตุ |
 | --- | --- | --- | --- |
-| GET | `/api/health` | — | health check |
+| GET | `/api/health` | — | health check — จุดเดียวที่ไม่ต้อง login |
 | POST | `/api/draft` | `{orgName?, subject?, addressee?, purpose?, polite?, notes}` | คืน `{paragraphs: string[]}` |
 | POST | `/api/chat` | `{turns: {role, content}[], images?: {mimeType, base64}[]}` | คืน `{assistantMessage, readyToDraft, fields, bodyParagraphs, quickReplies}` |
-| POST | `/api/documents` | `{title?, data}` | คืน `{id, createdAt}` |
-| GET | `/api/documents/:id` | — | คืนเอกสารที่เคยเซฟ หรือ 404 |
+| GET | `/api/documents` | — | รายการเอกสารของผู้ใช้ที่ login อยู่ คืน `{documents: {id, title, createdAt, updatedAt}[]}` |
+| POST | `/api/documents` | `{title?, data}` | บันทึกเอกสารใหม่ คืน `{id, createdAt}` — `owner_id` ตั้งจาก JWT อัตโนมัติ |
+| GET | `/api/documents/:id` | — | คืนเอกสาร ถ้าเป็นของผู้ใช้ที่ login อยู่ ไม่งั้น 404 (ไม่บอกว่ามีอยู่จริงแต่เป็นของคนอื่น) |
+| DELETE | `/api/documents/:id` | — | ลบเอกสาร (เฉพาะของตัวเอง) คืน `{ok: true}` หรือ 404 |
 
 ทุก endpoint ที่ error ตอบกลับรูปแบบเดียวกัน: `{"error": {"code": "...", "message": "..."}}`

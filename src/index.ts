@@ -1,14 +1,14 @@
 import { Hono, type Context } from "hono";
-import type { Env } from "./env";
 import { getLLMProvider } from "./llm/provider";
 import { LLMError } from "./llm/types";
 import type { ChatTurn, InlineImage } from "./llm/types";
 import { buildDraftSystemPrompt, buildDraftUserPrompt, CHAT_SYSTEM_PROMPT } from "./prompts";
 import { checkRateLimit } from "./ratelimit";
+import { verifyAuth, type AppBindings } from "./auth";
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<AppBindings>();
 
-type AppContext = Context<{ Bindings: Env }>;
+type AppContext = Context<AppBindings>;
 
 function clientIp(c: AppContext): string {
   return c.req.header("CF-Connecting-IP") || c.req.header("x-forwarded-for") || "unknown";
@@ -35,6 +35,18 @@ async function withRateLimit(
 }
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+
+// Every other /api/* route requires a signed-in user (Supabase Auth —
+// see src/auth.ts). Applied here rather than per-route so a new endpoint
+// can't accidentally ship unauthenticated.
+app.use("/api/*", async (c, next) => {
+  const user = await verifyAuth(c);
+  if (!user) {
+    return c.json(errorBody("unauthorized", "กรุณาเข้าสู่ระบบก่อนใช้งาน"), 401);
+  }
+  c.set("user", user);
+  await next();
+});
 
 app.post("/api/draft", async (c) => {
   return withRateLimit(c, "draft", async () => {
@@ -119,13 +131,31 @@ app.post("/api/chat", async (c) => {
 });
 
 // ---------- documents (D1) ----------
-// Anonymous save/load by random id — not wired into the frontend UI yet.
-// A ready-made building block for a future "save draft" / "shareable link"
-// feature; also demonstrates the D1 binding beyond just rate-limit counters.
-// See README "Architecture / roadmap" — owner_id is NULL until real accounts
-// (the Supabase-Auth branch of the diagram) exist.
+// Saved drafts, private to whoever saved them (owner_id = the Supabase
+// user id from the verified JWT — see the app.use("/api/*", ...) auth
+// middleware above). Documents themselves still live in D1, not Supabase
+// Postgres — only login moved to Supabase.
+
+app.get("/api/documents", async (c) => {
+  const user = c.get("user");
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, created_at, updated_at, title FROM documents WHERE owner_id = ? ORDER BY updated_at DESC LIMIT 100",
+  )
+    .bind(user.id)
+    .all<{ id: string; created_at: string; updated_at: string; title: string | null }>();
+
+  return c.json({
+    documents: results.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      title: row.title,
+    })),
+  });
+});
 
 app.post("/api/documents", async (c) => {
+  const user = c.get("user");
   const body = await c.req.json().catch(() => null);
   if (!body || typeof body.data !== "object" || body.data === null) {
     return c.json(errorBody("bad_request", "กรุณาระบุ data (สถานะเอกสาร)"), 400);
@@ -135,22 +165,25 @@ app.post("/api/documents", async (c) => {
   const title = typeof body.title === "string" ? body.title : null;
 
   await c.env.DB.prepare(
-    "INSERT INTO documents (id, created_at, updated_at, owner_id, title, data) VALUES (?, ?, ?, NULL, ?, ?)",
+    "INSERT INTO documents (id, created_at, updated_at, owner_id, title, data) VALUES (?, ?, ?, ?, ?, ?)",
   )
-    .bind(id, now, now, title, JSON.stringify(body.data))
+    .bind(id, now, now, user.id, title, JSON.stringify(body.data))
     .run();
 
   return c.json({ id, createdAt: now });
 });
 
 app.get("/api/documents/:id", async (c) => {
+  const user = c.get("user");
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    "SELECT id, created_at, updated_at, title, data FROM documents WHERE id = ?",
+    "SELECT id, created_at, updated_at, title, data FROM documents WHERE id = ? AND owner_id = ?",
   )
-    .bind(id)
+    .bind(id, user.id)
     .first<{ id: string; created_at: string; updated_at: string; title: string | null; data: string }>();
 
+  // Same 404 whether the id doesn't exist or belongs to someone else —
+  // doesn't leak which case it is.
   if (!row) {
     return c.json(errorBody("not_found", "ไม่พบเอกสารนี้"), 404);
   }
@@ -162,6 +195,19 @@ app.get("/api/documents/:id", async (c) => {
     title: row.title,
     data: JSON.parse(row.data),
   });
+});
+
+app.delete("/api/documents/:id", async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const result = await c.env.DB.prepare("DELETE FROM documents WHERE id = ? AND owner_id = ?")
+    .bind(id, user.id)
+    .run();
+
+  if (!result.meta.changes) {
+    return c.json(errorBody("not_found", "ไม่พบเอกสารนี้"), 404);
+  }
+  return c.json({ ok: true });
 });
 
 // Anything else (/, /index.html, and any other static asset) falls through
