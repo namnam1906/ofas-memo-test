@@ -26,7 +26,7 @@ database_id = "8ae481b3-3d7f-4364-9310-a90d518f61c4"
 # The corresponding *_API_KEY must be set as a secret (never put keys here —
 # this file is committed to the repo). See README "Setup" for exact commands.
 LLM_PROVIDER = "anthropic"
-ANTHROPIC_MODEL = "claude-opus-5"
+ANTHROPIC_MODEL = "claude-sonnet-5"
 GEMINI_MODEL = "gemini-2.5-flash"
 # Basic per-IP abuse guard, on top of requiring login, for /api/draft and
 # /api/chat.
