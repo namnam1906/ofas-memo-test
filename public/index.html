@@ -1182,6 +1182,11 @@
     margin-left:auto;
   }
   #chatRestartBtn{ margin-left:6px; }
+  #clearFormBtn{ margin-left:auto; }
+  /* fixed size to match the other 14x14 icon-buttons in this row family
+     (#chatRestartBtn etc.) — this button's icon is em-sized via .ic, and
+     .panel h2's 12.5px font-size would otherwise shrink it slightly */
+  #clearFormBtn .ic{ width:14px; height:14px; }
   .history-panel{
     position:absolute;
     top:calc(100% + 8px);
@@ -1694,7 +1699,9 @@
     <div class="form-col" id="formColPanel">
 
       <div class="panel">
-        <h2>ข้อมูลหัวหนังสือ</h2>
+        <h2>ข้อมูลหัวหนังสือ
+          <button type="button" class="chat-restart-icon-btn" id="clearFormBtn" title="ล้างข้อมูลทั้งหมด" aria-label="ล้างข้อมูลทั้งหมด"></button>
+        </h2>
 
         <div class="field">
           <label for="orgName">ส่วนงาน</label>
@@ -2518,6 +2525,21 @@ window.ICONS = {
     });
   }
   document.addEventListener('memo:signedOut', resetToBlankDraft);
+
+  // ---------- "ล้างข้อมูล" button (form panel header) — manual equivalent
+  // of resetToBlankDraft() above, for starting a fresh document without
+  // signing out ----------
+  el('clearFormBtn').innerHTML = window.ICONS.trash;
+  el('clearFormBtn').addEventListener('click', function(){
+    var hasContent = getBodyParagraphs().length > 0 ||
+      ['orgName','phone','fax','refNo','subject','addressee','signerName','signerPosition','attachments'].some(function(id){
+        return el(id).value.trim() !== '';
+      });
+    // nothing typed yet — just clear silently instead of nagging with a
+    // confirm dialog over an already-blank form
+    if(hasContent && !confirm('ล้างข้อมูลทั้งหมดในฟอร์มนี้เลยไหม? (ร่างที่เคยบันทึกไว้แล้วจะไม่หายไป)')) return;
+    resetToBlankDraft();
+  });
 
   // ---------- save draft to D1 (private to the signed-in user — see src/index.ts) ----------
   async function saveDraft(triggerBtnId, statusElId){
