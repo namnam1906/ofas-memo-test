@@ -62,7 +62,11 @@ export function createAnthropicProvider(apiKey: string, model: string): LLMProvi
 
     try {
       return extractJson(textBlock.text);
-    } catch {
+    } catch (err) {
+      // Logged (not surfaced to the user) so a real occurrence is
+      // diagnosable via `wrangler tail` instead of just the generic
+      // Thai error message reaching the client.
+      console.error("Anthropic response failed JSON extraction:", err, "raw text:", textBlock.text);
       throw new LLMError("upstream_error", "AI ตอบกลับไม่ถูกรูปแบบ JSON");
     }
   }

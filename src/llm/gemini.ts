@@ -65,7 +65,11 @@ export function createGeminiProvider(apiKey: string, model: string): LLMProvider
 
     try {
       return extractJson(text);
-    } catch {
+    } catch (err) {
+      // Logged (not surfaced to the user) so a real occurrence is
+      // diagnosable via `wrangler tail` instead of just the generic
+      // Thai error message reaching the client.
+      console.error("Gemini response failed JSON extraction:", err, "raw text:", text);
       throw new LLMError("upstream_error", "AI ตอบกลับไม่ถูกรูปแบบ JSON");
     }
   }
